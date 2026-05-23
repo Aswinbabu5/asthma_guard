@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AsthmaGuard AI — Sentinel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #08070f;
+            --panel: rgba(14,12,26,0.92);
+            --border: rgba(180,150,255,0.1);
+            --accent: #c9a84c;
+            --safe: #4ecb8d;
+            --mod: #d4943a;
+            --danger: #c0394b;
+            --text: #c8c0e0;
+            --text-bright: #e8e0f5;
+            --dim: #7a6fa8;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: #060c18;
+            background-image:
+                radial-gradient(ellipse 70% 50% at 10% 0%, rgba(40,80,180,0.22) 0%, transparent 55%),
+                radial-gradient(ellipse 50% 40% at 90% 100%, rgba(20,120,140,0.15) 0%, transparent 55%),
+                radial-gradient(ellipse 40% 30% at 50% 50%, rgba(30,60,120,0.1) 0%, transparent 60%),
+                linear-gradient(170deg, #071020 0%, #060c18 60%, #060e1c 100%);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            cursor: default;
+        }
+        #particle-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+        body::after {
+            content: '';
+            position: fixed; inset: 0; z-index: 1;
+            background-image:
+                linear-gradient(rgba(80,140,255,0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(80,140,255,0.025) 1px, transparent 1px);
+            background-size: 44px 44px;
+            pointer-events: none;
+        }
+
+        /* EMERGENCY OVERLAY */
+        #emergency-overlay {
+            position: fixed; inset: 0; z-index: 1000;
+            pointer-events: none; display: none;
+            animation: emergencyPulse 0.8s ease-in-out infinite;
+        }
+        @keyframes emergencyPulse {
+            0%,100% { box-shadow: inset 0 0 0px rgba(255,0,30,0); background: rgba(255,0,30,0); }
+            50% { box-shadow: inset 0 0 80px rgba(200,50,70,0.22); background: rgba(150,20,40,0.06); }
+        }
+
+        /* SIREN MODAL */
+        #siren-modal {
+            position: fixed; inset: 0; z-index: 2000;
+            display: none; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.92); backdrop-filter: blur(12px);
+            padding: clamp(8px, 2vh, 20px);
+        }
+        #siren-modal.active { display: flex; }
+        .siren-box {
+            border: 1.5px solid rgba(240,80,96,0.55); border-radius: clamp(12px, 2vw, 20px);
+            padding: clamp(12px, 2.5vh, 24px) clamp(14px, 2.5vw, 28px);
+            width: min(780px, 96vw);
+            max-height: 94vh;
+            text-align: center; position: relative; overflow: hidden;
+            background: rgba(8,2,6,0.99);
+            box-shadow: 0 0 50px rgba(192,57,75,0.18), 0 20px 60px rgba(0,0,0,0.9);
+            animation: sirenIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+            display: flex; flex-direction: column;
+        }
+        @keyframes sirenIn { from { transform: scale(0.75) translateY(-40px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+        .siren-ring {
+            position: absolute; border-radius: 50%; border: 1.5px solid var(--danger);
+            opacity: 0; animation: sirenRing 2s ease-out infinite;
+        }
+        .siren-ring:nth-child(1) { width:clamp(40px,6vw,60px); height:clamp(40px,6vw,60px); top:50%; left:50%; transform:translate(-50%,-50%); }
+        .siren-ring:nth-child(2) { width:clamp(70px,10vw,100px); height:clamp(70px,10vw,100px); top:50%; left:50%; transform:translate(-50%,-50%); animation-delay:0.5s; }
+        .siren-ring:nth-child(3) { width:clamp(100px,14vw,140px); height:clamp(100px,14vw,140px); top:50%; left:50%; transform:translate(-50%,-50%); animation-delay:1s; }
+        @keyframes sirenRing { 0%{transform:translate(-50%,-50%) scale(0.4);opacity:0.9;} 100%{transform:translate(-50%,-50%) scale(2);opacity:0;} }
+        .siren-icon { font-size: clamp(20px, 3.5vh, 34px); margin-bottom: clamp(2px,0.5vh,6px); display:block; animation: sirenPulse 0.6s ease-in-out infinite alternate; }
+        @keyframes sirenPulse { from{transform:scale(1);} to{transform:scale(1.18);} }
+        .siren-title {
+            font-family: 'Orbitron', monospace; font-size: clamp(14px, 2.8vh, 22px); font-weight: 900;
+            color: #f05060; letter-spacing: clamp(1px,0.4vw,4px); margin-bottom: 2px;
+            animation: titleFlash 0.5s ease-in-out infinite alternate;
+        }
+        @keyframes titleFlash { from{opacity:1;} to{opacity:0.6;} }
+        .siren-sub { font-size: clamp(9px, 1.4vh, 12px); color: #ff8fa3; letter-spacing: 2px; text-transform: uppercase; margin-bottom: clamp(4px,1vh,10px); }
+        .siren-badge {
+            display: inline-block;
+            background: rgba(255,45,85,0.1); border: 1px solid rgba(255,45,85,0.3);
+            border-radius: 8px; padding: clamp(3px,0.6vh,6px) clamp(12px,2vw,20px); margin-bottom: clamp(6px,1.2vh,14px);
+            font-family: 'Orbitron', monospace; font-size: clamp(11px,1.8vh,15px); color: #fff; letter-spacing: 2px;
+        }
+        .cons-list { text-align: left; margin-bottom: clamp(6px,1vh,12px); display:grid; grid-template-columns:1fr 1fr; gap:clamp(5px,1vw,10px); flex:1; }
+        .cons-head { font-size: clamp(10px,1.6vh,13px); letter-spacing: 2px; color: #e07080; text-transform: uppercase; margin-bottom: clamp(4px,0.8vh,8px); font-weight:700; grid-column:1/-1; }
+        .cons-row {
+            display: flex; align-items: flex-start; gap: 8px;
+            padding: clamp(6px,1.2vh,10px) clamp(8px,1.2vw,12px); border-radius: 8px; margin-bottom: 0;
+            background: rgba(255,30,60,0.06); border: 1px solid rgba(255,30,60,0.1);
+            animation: rowReveal 0.4s ease both; text-align:left;
+        }
+        .cons-row:nth-child(2){animation-delay:0.06s;} .cons-row:nth-child(3){animation-delay:0.12s;} .cons-row:nth-child(4){animation-delay:0.18s;} .cons-row:nth-child(5){animation-delay:0.24s;}
+        @keyframes rowReveal { from{opacity:0;transform:translateX(-14px);} to{opacity:1;transform:none;} }
+        .cons-row-icon { font-size: clamp(13px,2vh,18px); min-width:18px; margin-top:1px; flex-shrink:0; }
+        .cons-row-text strong { display:block; color:#ffd0da; font-size:clamp(11px,1.6vh,14px); font-weight:700; line-height:1.2; margin-bottom:2px; }
+        .cons-row-text span { font-size:clamp(10px,1.4vh,13px); color:#9a6070; line-height:1.4; }
+        .action-pills { display:flex; gap:clamp(4px,0.8vw,8px); flex-wrap:wrap; justify-content:center; margin-bottom:clamp(6px,1.2vh,12px); }
+        .action-pill { background:rgba(52,212,160,0.07); border:1px solid rgba(52,212,160,0.25); border-radius:50px; padding:clamp(4px,0.8vh,7px) clamp(10px,1.5vw,16px); font-size:clamp(11px,1.6vh,14px); color:#34d4a0; font-weight:600; }
+        .dismiss-btn {
+            background: linear-gradient(135deg, #6a1020, #f05060); border: none; border-radius: 10px;
+            padding: clamp(8px,1.4vh,13px) clamp(24px,4vw,44px); color: #fff; font-family: 'Orbitron', monospace;
+            font-size: clamp(10px,1.5vh,13px); font-weight: 700; letter-spacing: 2px;
+            cursor: pointer; transition: all 0.3s; width: 100%;
+        }
+        .dismiss-btn:hover { background:linear-gradient(135deg,#801828,#e06070); transform:scale(1.04); box-shadow:0 0 30px rgba(255,0,50,0.6); }
+
+        /* MODERATE BANNER */
+        #moderate-banner {
+            position: sticky; top:0; left:0; right:0; z-index:600;
+            display: none; padding: 9px 28px;
+            background: rgba(6,12,28,0.99);
+            border-bottom: 1.5px solid rgba(240,164,67,0.35);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            box-shadow: 0 3px 24px rgba(0,0,0,0.7);
+        }
+        #moderate-banner.active { display:block; }
+        @keyframes bannerIn { from{opacity:0;} to{opacity:1;} }
+        .banner-inner { max-width:1200px; margin:auto; display:flex; align-items:center; gap:10px; }
+        .banner-icon { font-size:16px; flex-shrink:0; }
+        @keyframes iconPop { from{transform:scale(1);} to{transform:scale(1.2);} }
+        .banner-text strong { color:#f0a443; font-size:14px; font-weight:700; white-space:nowrap; }
+        .banner-text span { font-size:13px; color:#8a7840; margin-left:6px; white-space:nowrap; }
+        .banner-pills { display:flex; gap:6px; margin-left:auto; flex-shrink:0; }
+        .banner-pill { background:rgba(240,164,67,0.08); border:1px solid rgba(240,164,67,0.25); border-radius:50px; padding:5px 12px; font-size:12px; color:#f0a443; font-weight:600; white-space:nowrap; }
+
+        /* MAIN */
+        .wrapper { position:relative; z-index:2; max-width:1200px; margin:0 auto; padding:36px 28px; transition:padding-top 0.4s; }
+        .wrapper.banner-offset { padding-top:0; }
+
+        /* HEADER */
+        header { display:flex; align-items:center; justify-content:space-between; margin-bottom:36px; gap:16px; flex-wrap:wrap; padding-bottom:24px; border-bottom:1px solid rgba(91,143,255,0.08); }
+        .logo { display:flex; align-items:center; gap:16px; }
+        .logo-orb {
+            width:54px; height:54px; border-radius:14px;
+            background: linear-gradient(145deg, #1e1630 0%, #2a1f4a 50%, #1a1228 100%);
+            display:flex; align-items:center; justify-content:center;
+            border: 1.5px solid rgba(201,168,76,0.4);
+            box-shadow: 0 2px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(201,168,76,0.15);
+            flex-shrink: 0;
+        }
+        .logo-orb svg { width:30px; height:30px; }
+        .brand h1 {
+            font-family:'Orbitron', monospace; font-size:24px; font-weight:900;
+            letter-spacing:3px; background:linear-gradient(135deg, #ffffff 10%, #a0c8ff 50%, #5b8fff 80%, #c0e0ff 100%);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+        }
+        .brand p { font-size:13px; color:#9a90b8; letter-spacing:3px; text-transform:uppercase; margin-top:3px; }
+        .hdr-right { display:flex; align-items:center; gap:14px; }
+        .live-badge { font-size:13px !important;
+            display:flex; align-items:center; gap:7px;
+            border:1px solid rgba(91,143,255,0.3); background:rgba(91,143,255,0.06);
+            padding:7px 16px; border-radius:50px;
+            font-family:'Space Mono', monospace; font-size:13px; color:#5b8fff;
+        }
+        .pulse { width:7px; height:7px; border-radius:50%; background:#34d4a0; box-shadow:0 0 6px rgba(52,212,160,0.7); animation:pulseDot 1.4s ease-in-out infinite; }
+        @keyframes pulseDot { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.3;transform:scale(0.65);} }
+        .clock { font-family:'Space Mono', monospace; font-size:16px; color:#c8c0e0; }
+
+        /* RISK HERO */
+        .risk-hero {
+            border-radius:24px; padding:40px 44px; margin-bottom:22px;
+            position:relative; overflow:hidden;
+            backdrop-filter:blur(20px); border:1px solid var(--border);
+            background:var(--panel); transition:border-color 0.8s, box-shadow 0.8s;
+        }
+        .risk-hero.safe { border-color:rgba(52,212,160,0.2); box-shadow:0 0 24px rgba(52,212,160,0.05); }
+        .risk-hero.moderate { border-color:rgba(240,164,67,0.22); box-shadow:0 0 24px rgba(240,164,67,0.06); }
+        .risk-hero.high { border-color:rgba(240,80,96,0.32); box-shadow:0 0 28px rgba(240,80,96,0.1); }
+        .hero-bar { height:3px; border-radius:3px; margin-bottom:34px; transition:background 0.8s; }
+        .safe .hero-bar { background:linear-gradient(90deg, transparent, #34d4a0, transparent); }
+        .moderate .hero-bar { background:linear-gradient(90deg, transparent, #f0a443, transparent); }
+        .high .hero-bar { background:linear-gradient(90deg, transparent, #f05060, transparent); }
+        .hero-inner { display:flex; align-items:center; justify-content:space-between; gap:28px; flex-wrap:wrap; }
+        .risk-left { flex:1; min-width:220px; }
+        .risk-eyebrow { font-size:13px; letter-spacing:5px; color:var(--dim); text-transform:uppercase; margin-bottom:12px; }
+        .risk-value {
+            font-family:'Orbitron', monospace; font-weight:900;
+            font-size:clamp(38px, 6.5vw, 68px); letter-spacing:2px;
+            text-transform:uppercase; line-height:1;
+            transition:color 0.8s, text-shadow 0.8s;
+        }
+        .safe .risk-value { color:#4ecb8d; text-shadow:none; }
+        .moderate .risk-value { color:#d4943a; text-shadow:none; }
+        .high .risk-value { color:#c0394b; text-shadow:none; animation:flicker 2s ease-in-out infinite; }
+        @keyframes flicker { 0%,100%{opacity:1;} 91%{opacity:1;} 93%{opacity:0.6;} 95%{opacity:1;} 97%{opacity:0.8;} 98%{opacity:1;} }
+        .risk-desc { margin-top:14px; font-size:16px; color:var(--text); line-height:1.6; max-width:400px; }
+        .quick-tags { display:flex; gap:8px; flex-wrap:wrap; margin-top:18px; }
+        .q-tag { font-size:13px; padding:5px 12px; border-radius:6px; border:1px solid var(--border); color:var(--text); background:rgba(255,255,255,0.03); }
+        .risk-right { display:flex; flex-direction:column; align-items:center; gap:18px; }
+        /* AQI Dial Gauge */
+        .gauge-wrap { position:relative; width:200px; height:200px; flex-shrink:0; }
+        .gauge-svg { width:200px; height:200px; display:block; }
+        .gauge-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; }
+        .gauge-aqi-num { font-family:'Orbitron',monospace; font-weight:900; font-size:38px; line-height:1; transition:color 0.8s; }
+        .gauge-aqi-lbl { font-size:11px; letter-spacing:4px; color:#7a6fa8; text-transform:uppercase; margin-top:6px; font-weight:700; }
+        .gauge-cat { font-size:12px; font-weight:700; letter-spacing:1px; margin-top:5px; transition:color 0.8s; text-transform:uppercase; }
+        .safe .gauge-aqi-num  { color:#4ecb8d; }
+        .moderate .gauge-aqi-num { color:#f0a443; }
+        .high .gauge-aqi-num  { color:#c0394b; }
+        .safe .gauge-cat  { color:#4ecb8d; }
+        .moderate .gauge-cat { color:#f0a443; }
+        .high .gauge-cat  { color:#c0394b; }
+
+        /* HERO redesign */
+        .risk-hero {
+            border-radius:24px; padding:0; margin-bottom:22px;
+            position:relative; overflow:hidden;
+            backdrop-filter:blur(20px); border:1px solid var(--border);
+            background: linear-gradient(135deg, rgba(8,16,34,0.97) 0%, rgba(10,20,42,0.95) 100%);
+            transition:border-color 0.8s, box-shadow 0.8s;
+        }
+        .hero-accent-bar { height:3px; width:100%; transition:background 0.8s; }
+        .safe .hero-accent-bar { background:linear-gradient(90deg, transparent 0%, #34d4a0 40%, #5b8fff 60%, transparent 100%); }
+        .moderate .hero-accent-bar { background:linear-gradient(90deg, transparent 0%, #f0a443 40%, #5b8fff 60%, transparent 100%); }
+        .high .hero-accent-bar { background:linear-gradient(90deg, transparent 0%, #f05060 40%, #a02030 60%, transparent 100%); }
+        .hero-body { display:grid; grid-template-columns:1fr auto; gap:0; align-items:stretch; }
+        .hero-left { padding:36px 40px; }
+        .hero-right {
+            width:260px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+            padding:24px 28px; gap:12px;
+            border-left:1px solid rgba(255,255,255,0.05);
+            background:rgba(0,0,0,0.12);
+        }
+        .risk-eyebrow { font-size:13px; letter-spacing:4px; color:#9a90b8; text-transform:uppercase; margin-bottom:10px; font-weight:600; }
+        .risk-value {
+            font-family:'Orbitron', monospace; font-weight:900;
+            font-size:clamp(36px, 5.5vw, 64px); letter-spacing:2px;
+            text-transform:uppercase; line-height:1;
+            transition:color 0.8s;
+        }
+        .safe .risk-value { color:#34d4a0; }
+        .moderate .risk-value { color:#f0a443; }
+        .high .risk-value { color:#f05060; animation:flicker 2s ease-in-out infinite; }
+        @keyframes flicker { 0%,100%{opacity:1;} 91%{opacity:1;} 93%{opacity:0.6;} 95%{opacity:1;} 97%{opacity:0.8;} 98%{opacity:1;} }
+        .risk-desc { margin-top:12px; font-size:16px; color:#c8c0e0; line-height:1.6; max-width:380px; }
+        .quick-tags { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+        .q-tag { font-size:14px; padding:6px 14px; border-radius:8px; border:1px solid rgba(91,143,255,0.15); color:#c8c0e0; background:rgba(255,255,255,0.04); font-weight:600; }
+        .ts-box { font-family:'Space Mono', monospace; font-size:13px; color:#9a90b8; text-align:center; }
+        @media(max-width:680px){
+            .hero-body { grid-template-columns:1fr; }
+            .hero-right { width:100%; border-left:none; border-top:1px solid rgba(255,255,255,0.05); }
+        }
+
+        /* SENSOR GRID */
+        .sec-head { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+        .sec-head h2 { font-size:14px; letter-spacing:4px; color:#9a90b8; text-transform:uppercase; font-weight:700; }
+        .sec-head::after { content:''; flex:1; height:1px; background:linear-gradient(90deg, rgba(91,143,255,0.25), transparent); }
+        .sensor-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:13px; margin-bottom:26px; }
+        .s-card {
+            background:var(--panel); border:1px solid var(--border); border-radius:18px;
+            padding:24px 22px 18px; backdrop-filter:blur(20px); position:relative; overflow:hidden;
+            transition:transform 0.3s, border-color 0.3s, box-shadow 0.3s; cursor:default;
+        }
+        .s-card:hover { transform:translateY(-4px) scale(1.01); border-color:var(--cc, rgba(0,200,255,0.3)); box-shadow:0 12px 40px rgba(0,0,0,0.4); }
+        .s-glow { position:absolute; inset:0; border-radius:18px; pointer-events:none; opacity:0; transition:opacity 0.3s; background:radial-gradient(circle at 50% 0%, var(--cc, rgba(0,200,255,0.08)), transparent 70%); }
+        .s-card:hover .s-glow { opacity:1; }
+        .s-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+        .s-icon { font-size:20px; }
+        .s-dot { width:7px; height:7px; border-radius:50%; animation:pulseDot 2s ease-in-out infinite; }
+        .s-name { font-size:14px; letter-spacing:2px; color:#b0a8cc; text-transform:uppercase; margin-bottom:6px; font-weight:600; }
+        .s-val { font-family:'Orbitron', monospace; font-size:34px; font-weight:700; color:#f0eaff; line-height:1; }
+        .s-unit { font-size:15px; color:#9a90b8; margin-top:3px; font-weight:600; }
+        .s-thresh { margin-top:10px; height:3px; border-radius:3px; background:rgba(255,255,255,0.05); overflow:hidden; }
+        .s-thresh-fill { height:100%; border-radius:3px; background:var(--cc, var(--accent)); transition:width 1s ease; max-width:100%; }
+        .sparkline { height:26px; margin-top:12px; display:flex; align-items:flex-end; gap:2.5px; }
+        .sp-bar { flex:1; border-radius:2px 2px 0 0; background:var(--cc, rgba(0,200,255,0.4)); opacity:0.4; min-height:3px; transition:height 0.7s cubic-bezier(0.4,0,0.2,1); }
+        .val-up { animation:valBounce 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+        @keyframes valBounce { from{opacity:0.3;transform:translateY(6px) scale(0.94);} to{opacity:1;transform:none;} }
+        @keyframes heartbeat { 0%,100%{transform:scale(1);} 15%{transform:scale(1.25);} 30%{transform:scale(1);} 45%{transform:scale(1.15);} 60%{transform:scale(1);} }
+        @keyframes spo2Pulse { 0%,100%{box-shadow:none;} 50%{box-shadow:0 0 30px rgba(255,45,85,0.4);} }
+
+        /* CONSEQUENCES */
+        .cons-panel { background:var(--panel); border:1px solid var(--border); border-radius:20px; padding:26px; margin-bottom:24px; backdrop-filter:blur(20px); transition:border-color 0.8s; }
+        .cons-panel.elevated { border-color:rgba(255,45,85,0.2); }
+        .cons-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(275px, 1fr)); gap:12px; }
+        .cc {
+            border-radius:14px; padding:16px 18px; border:1px solid transparent;
+            transition:all 0.6s ease; position:relative;
+        }
+        .cc.inactive { background:rgba(255,255,255,0.018); border-color:rgba(255,255,255,0.04); opacity:0.4; }
+        .cc.warning { background:rgba(240,164,67,0.06); border-color:rgba(240,164,67,0.2); opacity:1; }
+        .cc.danger { background:rgba(240,80,96,0.07); border-color:rgba(240,80,96,0.22); opacity:1; animation:ccPulse 2s ease-in-out infinite; }
+        @keyframes ccPulse { 0%,100%{box-shadow:none;} 50%{box-shadow:0 0 18px rgba(240,80,96,0.15);} }
+        .cc-hdr { display:flex; align-items:center; gap:11px; margin-bottom:10px; }
+        .cc-ico { font-size:28px; }
+        .cc-title { font-size:17px; font-weight:700; color:#f0eaff; }
+        .cc-sev { margin-left:auto; font-size:12px; letter-spacing:1px; padding:4px 10px; border-radius:50px; font-family:'Space Mono', monospace; font-weight:700; }
+        .sev-low { background:rgba(52,212,160,0.1); color:#34d4a0; border:1px solid rgba(52,212,160,0.25); }
+        .sev-med { background:rgba(240,164,67,0.1); color:#f0a443; border:1px solid rgba(240,164,67,0.25); }
+        .sev-high { background:rgba(240,80,96,0.12); color:#f05060; border:1px solid rgba(240,80,96,0.28); }
+        .cc-body { font-size:15px; color:#c8c0e0; line-height:1.6; }
+        .cc-stat { margin-top:10px; padding:8px 12px; border-radius:8px; background:rgba(255,255,255,0.04); font-size:13px; color:#9a90b8; font-family:'Space Mono', monospace; }
+        .cc-stat span { color:#fff; }
+
+        /* ACTIONS */
+        .acts-panel { background:var(--panel); border:1px solid var(--border); border-radius:20px; padding:26px; margin-bottom:24px; backdrop-filter:blur(20px); }
+        .act-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(215px, 1fr)); gap:12px; }
+        .act-card { border-radius:14px; padding:15px; background:rgba(91,143,255,0.03); border:1px solid rgba(91,143,255,0.1); display:flex; align-items:flex-start; gap:11px; transition:all 0.3s; }
+        .act-card:hover { background:rgba(91,143,255,0.07); transform:translateX(4px); }
+        .act-card.urgent { background:rgba(52,212,160,0.06); border-color:rgba(52,212,160,0.2); }
+        .act-num { font-family:'Orbitron', monospace; font-size:16px; color:#5b8fff; min-width:26px; font-weight:900; }
+        .act-text strong { display:block; font-size:17px; color:#f0eaff; margin-bottom:4px; }
+        .act-text span { font-size:15px; color:#c8c0e0; }
+
+        footer { border-top:1px solid var(--border); padding-top:22px; text-align:center; font-family:'Space Mono', monospace; font-size:13px; color:#7a6fa8; letter-spacing:3px; }
+    </style>
+</head>
+<body>
+
+<canvas id="particle-canvas"></canvas>
+<div id="emergency-overlay"></div>
+
+<!-- SIREN MODAL -->
+<div id="siren-modal">
+    <div class="siren-box">
+        <div class="siren-ring"></div><div class="siren-ring"></div><div class="siren-ring"></div>
+        <span class="siren-icon">🚨</span>
+        <div class="siren-title">CRITICAL ALERT</div>
+        <div class="siren-sub">Dangerous Air Quality Detected</div>
+        <div class="siren-badge" id="modal-risk">SEVERE RISK</div>
+        <div class="cons-list">
+            <div class="cons-head">⚠ Immediate Health Consequences</div>
+            <div class="cons-row"><div class="cons-row-icon">🫁</div><div class="cons-row-text"><strong>Acute Bronchospasm</strong><span>Airways constrict violently within minutes. Asthma attack is highly probable without immediate action.</span></div></div>
+            <div class="cons-row"><div class="cons-row-icon">💔</div><div class="cons-row-text"><strong>Cardiovascular Stress</strong><span>PM2.5 enters bloodstream, triggering inflammation. Heart attack risk elevated by 35–45%.</span></div></div>
+            <div class="cons-row"><div class="cons-row-icon">🧠</div><div class="cons-row-text"><strong>Neurological Impairment</strong><span>Oxygen deprivation causes dizziness, confusion, and potential loss of consciousness.</span></div></div>
+            <div class="cons-row"><div class="cons-row-icon">👶</div><div class="cons-row-text"><strong>Vulnerable Groups at Extreme Risk</strong><span>Children, elderly, and pregnant individuals face irreversible health consequences. Evacuate immediately.</span></div></div>
+        </div>
+        <div class="action-pills">
+            <div class="action-pill">💊 Use Inhaler Now</div>
+            <div class="action-pill">🏠 Move Indoors</div>
+            <div class="action-pill">😷 Wear N95</div>
+            <div class="action-pill">📞 Call Doctor</div>
+        </div>
+        <button class="dismiss-btn" onclick="dismissModal()">ACKNOWLEDGE & MONITOR</button>
+    </div>
+</div>
+
+<!-- MODERATE BANNER -->
+<div id="moderate-banner">
+    <div class="banner-inner">
+        <div class="banner-icon">⚡</div>
+        <div class="banner-text"><strong>MODERATE AIR QUALITY ALERT</strong><span>Sensitive groups may experience symptoms. Take precautions.</span></div>
+        <div class="banner-pills"><div class="banner-pill">💧 Stay Hydrated</div><div class="banner-pill">🚶 Limit Outdoor Activity</div><div class="banner-pill">😷 Consider Mask</div></div>
+    </div>
+</div>
+
+<div class="wrapper" id="main-wrapper">
+    <header>
+        <div class="logo">
+            <div class="logo-orb">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z" fill="rgba(91,143,255,0.15)" stroke="#5b8fff" stroke-width="1.5" stroke-linejoin="round"/>
+                    <path d="M9 12l2 2 4-4" stroke="#5b8fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="brand"><h1>ASTHMA GUARD</h1><p>Sentinel AI · Real-Time Protection</p></div>
+        </div>
+        <div class="hdr-right">
+            <div class="live-badge"><div class="pulse"></div>LIVE MONITORING</div>
+            <div class="clock" id="clock">00:00:00</div>
+        </div>
+    </header>
+
+    <!-- RISK HERO -->
+    <div id="risk-hero" class="risk-hero safe">
+        <div class="hero-accent-bar"></div>
+        <div class="hero-body">
+            <div class="hero-left">
+                <div class="risk-eyebrow">⬡ Current Asthma Risk Assessment</div>
+                <div class="risk-value" id="risk-text">INITIALIZING</div>
+                <div class="risk-desc" id="risk-desc">Connecting to IoT sensors and AI prediction engine...</div>
+                <div class="quick-tags" id="quick-tags">
+                    <div class="q-tag">🛡 All Clear</div>
+                    <div class="q-tag">✅ Safe to Breathe</div>
+                    <div class="q-tag">🌿 Normal Activity OK</div>
+                </div>
+            </div>
+            <div class="hero-right">
+                <!-- AQI Dial Gauge (canvas-based, pixel-perfect) -->
+                <div class="gauge-wrap">
+                    <canvas id="gauge-canvas" width="200" height="200" style="display:block;"></canvas>
+                    <div class="gauge-center">
+                        <div class="gauge-aqi-num" id="radar-aqi">—</div>
+                        <div class="gauge-aqi-lbl">AQI</div>
+                        <div class="gauge-cat" id="gauge-cat">—</div>
+                    </div>
+                </div>
+                <div class="ts-box">
+                    <div style="letter-spacing:3px;color:#9a90b8;font-size:13px;font-weight:600;">LAST UPDATE</div>
+                    <div id="timestamp" style="color:#e8e0f5;margin-top:4px;font-size:15px;font-weight:700;">--:--:--</div>
+                </div>
+            </div>
+        </div>
+    
+
+    <!-- SENSOR GRID -->
+    <div class="sec-head"><h2>Live Sensor Matrix</h2></div>
+    <div class="sensor-grid">
+        <div class="s-card" style="--cc:#00d4ff"><div class="s-glow"></div><div class="s-top"><div class="s-icon">💨</div><div class="s-dot" style="background:#00d4ff;box-shadow:0 0 8px #00d4ff"></div></div><div class="s-name">PM 2.5</div><div class="s-val"><span id="pm25">0.0</span></div><div class="s-unit">μg/m³</div><div class="s-thresh"><div class="s-thresh-fill" id="th-pm25"></div></div><div class="sparkline" id="sp-pm25"></div></div>
+        <div class="s-card" style="--cc:#a78bfa"><div class="s-glow"></div><div class="s-top"><div class="s-icon">🌫️</div><div class="s-dot" style="background:#a78bfa;box-shadow:0 0 8px #a78bfa"></div></div><div class="s-name">PM 10</div><div class="s-val"><span id="pm10">0.0</span></div><div class="s-unit">μg/m³</div><div class="s-thresh"><div class="s-thresh-fill" id="th-pm10" style="background:#a78bfa"></div></div><div class="sparkline" id="sp-pm10"></div></div>
+        <div class="s-card" style="--cc:#fb7185"><div class="s-glow"></div><div class="s-top"><div class="s-icon">🔴</div><div class="s-dot" style="background:#fb7185;box-shadow:0 0 8px #fb7185"></div></div><div class="s-name">NO₂</div><div class="s-val"><span id="no2">0.0</span></div><div class="s-unit">ppm</div><div class="s-thresh"><div class="s-thresh-fill" id="th-no2" style="background:#fb7185"></div></div><div class="sparkline" id="sp-no2"></div></div>
+        <div class="s-card" style="--cc:#fbbf24"><div class="s-glow"></div><div class="s-top"><div class="s-icon">⚗️</div><div class="s-dot" style="background:#fbbf24;box-shadow:0 0 8px #fbbf24"></div></div><div class="s-name">SO₂</div><div class="s-val"><span id="so2">0.0</span></div><div class="s-unit">ppm</div><div class="s-thresh"><div class="s-thresh-fill" id="th-so2" style="background:#fbbf24"></div></div><div class="sparkline" id="sp-so2"></div></div>
+        <div class="s-card" style="--cc:#f97316"><div class="s-glow"></div><div class="s-top"><div class="s-icon">💭</div><div class="s-dot" style="background:#f97316;box-shadow:0 0 8px #f97316"></div></div><div class="s-name">CO</div><div class="s-val"><span id="co">0.0</span></div><div class="s-unit">ppm</div><div class="s-thresh"><div class="s-thresh-fill" id="th-co" style="background:#f97316"></div></div><div class="sparkline" id="sp-co"></div></div>
+        <div class="s-card" style="--cc:#34d399"><div class="s-glow"></div><div class="s-top"><div class="s-icon">🌀</div><div class="s-dot" style="background:#34d399;box-shadow:0 0 8px #34d399"></div></div><div class="s-name">Ozone O₃</div><div class="s-val"><span id="o3">0.0</span></div><div class="s-unit">ppm</div><div class="s-thresh"><div class="s-thresh-fill" id="th-o3" style="background:#34d399"></div></div><div class="sparkline" id="sp-o3"></div></div>
+        <div class="s-card" style="--cc:#f43f5e"><div class="s-glow"></div><div class="s-top"><div class="s-icon">🌡️</div><div class="s-dot" style="background:#f43f5e;box-shadow:0 0 8px #f43f5e"></div></div><div class="s-name">Temperature</div><div class="s-val"><span id="temp">0.0</span></div><div class="s-unit">°C</div><div class="s-thresh"><div class="s-thresh-fill" id="th-temp" style="background:#f43f5e"></div></div><div class="sparkline" id="sp-temp"></div></div>
+        <div class="s-card" style="--cc:#0ea5e9"><div class="s-glow"></div><div class="s-top"><div class="s-icon">💧</div><div class="s-dot" style="background:#0ea5e9;box-shadow:0 0 8px #0ea5e9"></div></div><div class="s-name">Humidity</div><div class="s-val"><span id="hum">0.0</span></div><div class="s-unit">%</div><div class="s-thresh"><div class="s-thresh-fill" id="th-hum" style="background:#0ea5e9"></div></div><div class="sparkline" id="sp-hum"></div></div>
+
+        <div class="s-card" id="card-spo2" style="--cc:#a855f7"><div class="s-glow"></div><div class="s-top"><div class="s-icon">🩸</div><div class="s-dot" id="dot-spo2" style="background:#a855f7;box-shadow:0 0 8px #a855f7"></div></div><div class="s-name">SpO₂</div><div class="s-val"><span id="spo2">--</span></div><div class="s-unit">%</div><div class="s-thresh"><div class="s-thresh-fill" id="th-spo2" style="background:#a855f7"></div></div><div class="sparkline" id="sp-spo2"></div><div class="vital-alert" id="alert-spo2" style="display:none;margin-top:8px;padding:5px 10px;border-radius:6px;background:rgba(255,45,85,0.15);border:1px solid rgba(255,45,85,0.4);font-size:13px;color:#ff8090;font-weight:700;font-family:'Space Mono',monospace;">⚠ HYPOXIA RISK</div></div>
+
+        <div class="s-card" id="card-hr" style="--cc:#ec4899"><div class="s-glow"></div><div class="s-top"><div class="s-icon">❤️</div><div class="s-dot" id="dot-hr" style="background:#ec4899;box-shadow:0 0 8px #ec4899"></div></div><div class="s-name">Heart Rate</div><div class="s-val"><span id="heart_rate">--</span></div><div class="s-unit">bpm</div><div class="s-thresh"><div class="s-thresh-fill" id="th-hr" style="background:#ec4899"></div></div><div class="sparkline" id="sp-hr"></div><div class="vital-alert" id="alert-hr" style="display:none;margin-top:8px;padding:5px 10px;border-radius:6px;background:rgba(255,45,85,0.15);border:1px solid rgba(255,45,85,0.4);font-size:13px;color:#ff8090;font-weight:700;font-family:'Space Mono',monospace;">⚠ ABNORMAL HR</div></div>
+    </div>
+
+    <!-- VITALS PANEL -->
+    <div class="sec-head"><h2>Patient Vitals — MAX30100</h2></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:26px;">
+
+        <div id="vitals-spo2" style="background:var(--panel);border:1px solid rgba(168,85,247,0.15);border-radius:20px;padding:24px 28px;backdrop-filter:blur(20px);transition:all 0.6s;position:relative;overflow:hidden;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <div>
+                    <div style="font-size:15px;letter-spacing:4px;color:#9a90b8;text-transform:uppercase;margin-bottom:6px;">Blood Oxygen Saturation</div>
+                    <div style="font-family:'Orbitron',monospace;font-size:52px;font-weight:900;color:#a855f7;line-height:1;transition:color 0.6s;" id="big-spo2">--<span style="font-size:22px;opacity:0.6;">%</span></div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:36px;animation:heartbeat 1.2s ease-in-out infinite;">🩸</div>
+                    <div style="font-size:15px;letter-spacing:2px;color:#9a90b8;margin-top:4px;">SpO₂</div>
+                </div>
+            </div>
+            <div style="height:6px;border-radius:6px;background:rgba(255,255,255,0.06);overflow:hidden;margin-bottom:10px;">
+                <div id="spo2-bar" style="height:100%;border-radius:6px;background:#a855f7;width:0%;transition:width 1s ease,background 0.6s;"></div>
+            </div>
+            <div id="spo2-status" style="font-size:15px;color:#a855f7;font-family:'Space Mono',monospace;letter-spacing:1px;">WAITING FOR SENSOR</div>
+            <div id="spo2-consequence" style="margin-top:10px;font-size:15px;color:var(--text);line-height:1.5;display:none;"></div>
+        </div>
+
+        <div id="vitals-hr" style="background:var(--panel);border:1px solid rgba(236,72,153,0.15);border-radius:20px;padding:24px 28px;backdrop-filter:blur(20px);transition:all 0.6s;position:relative;overflow:hidden;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <div>
+                    <div style="font-size:15px;letter-spacing:4px;color:#9a90b8;text-transform:uppercase;margin-bottom:6px;">Heart Rate</div>
+                    <div style="font-family:'Orbitron',monospace;font-size:52px;font-weight:900;color:#ec4899;line-height:1;transition:color 0.6s;" id="big-hr">--<span style="font-size:22px;opacity:0.6;">bpm</span></div>
+                </div>
+                <div style="text-align:center;">
+                    <div id="heart-emoji" style="font-size:36px;animation:heartbeat 1s ease-in-out infinite;">❤️</div>
+                    <div style="font-size:15px;letter-spacing:2px;color:#9a90b8;margin-top:4px;">BPM</div>
+                </div>
+            </div>
+            <div style="height:6px;border-radius:6px;background:rgba(255,255,255,0.06);overflow:hidden;margin-bottom:10px;">
+                <div id="hr-bar" style="height:100%;border-radius:6px;background:#ec4899;width:0%;transition:width 1s ease,background 0.6s;"></div>
+            </div>
+            <div id="hr-status" style="font-size:15px;color:#ec4899;font-family:'Space Mono',monospace;letter-spacing:1px;">WAITING FOR SENSOR</div>
+            <div id="hr-consequence" style="margin-top:10px;font-size:15px;color:var(--text);line-height:1.5;display:none;"></div>
+        </div>
+
+    </div>
+
+    <!-- HEALTH CONSEQUENCES -->
+    <div class="sec-head"><h2>Health Impact Assessment</h2></div>
+    <div class="cons-panel" id="cons-panel">
+        <div class="cons-grid">
+            <div class="cc inactive" id="cc-lungs"><div class="cc-hdr"><div class="cc-ico">🫁</div><div class="cc-title">Respiratory System</div><div class="cc-sev sev-low" id="cc-lungs-sev">LOW</div></div><div class="cc-body" id="cc-lungs-body">Air quality is within safe limits. Normal breathing unaffected.</div><div class="cc-stat" id="cc-lungs-stat">Airway stress: <span>MINIMAL</span></div></div>
+            <div class="cc inactive" id="cc-heart"><div class="cc-hdr"><div class="cc-ico">❤️</div><div class="cc-title">Cardiovascular System</div><div class="cc-sev sev-low" id="cc-heart-sev">LOW</div></div><div class="cc-body" id="cc-heart-body">No cardiovascular strain. Heart and vessels functioning normally.</div><div class="cc-stat" id="cc-heart-stat">Cardiac risk elevation: <span>+0%</span></div></div>
+            <div class="cc inactive" id="cc-brain"><div class="cc-hdr"><div class="cc-ico">🧠</div><div class="cc-title">Neurological Effects</div><div class="cc-sev sev-low" id="cc-brain-sev">LOW</div></div><div class="cc-body" id="cc-brain-body">Full cognitive function maintained. No dizziness or headaches expected.</div><div class="cc-stat" id="cc-brain-stat">O₂ saturation impact: <span>NONE</span></div></div>
+            <div class="cc inactive" id="cc-eyes"><div class="cc-hdr"><div class="cc-ico">👁️</div><div class="cc-title">Mucous Membranes</div><div class="cc-sev sev-low" id="cc-eyes-sev">LOW</div></div><div class="cc-body" id="cc-eyes-body">Eyes, nose, and throat unaffected at current pollutant levels.</div><div class="cc-stat" id="cc-eyes-stat">Irritant exposure: <span>SAFE</span></div></div>
+            <div class="cc inactive" id="cc-immune"><div class="cc-hdr"><div class="cc-ico">🛡️</div><div class="cc-title">Immune Response</div><div class="cc-sev sev-low" id="cc-immune-sev">LOW</div></div><div class="cc-body" id="cc-immune-body">No inflammatory response triggered. Safe for immunocompromised individuals.</div><div class="cc-stat" id="cc-immune-stat">Cytokine response: <span>NONE</span></div></div>
+            <div class="cc inactive" id="cc-vuln"><div class="cc-hdr"><div class="cc-ico">👶</div><div class="cc-title">Vulnerable Groups</div><div class="cc-sev sev-low" id="cc-vuln-sev">LOW</div></div><div class="cc-body" id="cc-vuln-body">Children, elderly, and pregnant individuals not at elevated risk.</div><div class="cc-stat" id="cc-vuln-stat">Vulnerable advisory: <span>NONE</span></div></div>
+        </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="sec-head"><h2>Recommended Actions</h2></div>
+    <div class="acts-panel">
+        <div class="act-grid" id="act-grid">
+            <div class="act-card urgent"><div class="act-num">01</div><div class="act-text"><strong>Continue Normal Activities</strong><span>Air quality is safe. No restrictions needed for anyone including asthma patients.</span></div></div>
+            <div class="act-card"><div class="act-num">02</div><div class="act-text"><strong>Keep Medication Accessible</strong><span>Always have rescue inhaler within reach as standard practice.</span></div></div>
+            <div class="act-card"><div class="act-num">03</div><div class="act-text"><strong>Monitor Readings</strong><span>Dashboard updates every 2 seconds. Watch for spikes in PM2.5 or NO₂.</span></div></div>
+            <div class="act-card"><div class="act-num">04</div><div class="act-text"><strong>Stay Hydrated</strong><span>Good hydration supports respiratory health and pollutant clearance.</span></div></div>
+        </div>
+    </div>
+
+    <footer>ASTHMA GUARD AI · SENTINEL v2.0 · IOT REAL-TIME PROTECTION SYSTEM</footer>
+</div>
+
+<script>
+// PARTICLES
+const canvas = document.getElementById('particle-canvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize(); window.addEventListener('resize', resize);
+const pts = Array.from({length:45}, () => ({
+    x: Math.random()*1920, y: Math.random()*1080,
+    r: Math.random()*1.4+0.3,
+    vx: (Math.random()-0.5)*0.25, vy: (Math.random()-0.5)*0.25,
+    c: ['rgba(60,120,240,','rgba(40,180,200,','rgba(80,160,255,','rgba(52,212,160,','rgba(100,140,220,'][Math.floor(Math.random()*5)],
+    a: Math.random()*0.45+0.08
+}));
+function drawPts() {
+    ctx.clearRect(0,0,W,H);
+    pts.forEach(p => {
+        p.x+=p.vx; p.y+=p.vy;
+        if(p.x<0)p.x=W; if(p.x>W)p.x=0;
+        if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fillStyle=p.c+p.a+')'; ctx.fill();
+    });
+    requestAnimationFrame(drawPts);
+}
+drawPts();
+
+// CLOCK
+setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB'); }, 1000);
+
+// DATA HISTORY
+const hist = {};
+['pm25','pm10','no2','so2','co','o3','temp','hum','spo2','hr'].forEach(k => hist[k]=[]);
+
+// RISK PROFILES
+const PROFILES = {
+    safe: {
+        cls:'safe', aqi:18, aqiPct:8, aqiLabel:'GOOD', aqiColor:'var(--safe)',
+        desc:'Air quality is excellent. All pollutants within WHO safe limits. Ideal for all activities including sensitive groups.',
+        tags:['🛡 All Clear','✅ Safe for All','🌿 Outdoor Activity OK','💨 Clean Air'],
+        actions:[
+            {n:'01',t:'Enjoy Normal Activities',d:'Outdoor exercise is safe for everyone. No restrictions needed.',u:true},
+            {n:'02',t:'Preventive Medication',d:'Take controller medication as prescribed. No extra precautions needed.'},
+            {n:'03',t:'Keep Monitoring',d:'Conditions can change. Stay aware of sudden changes in PM2.5 or NO₂.'},
+            {n:'04',t:'Stay Hydrated',d:'Good hydration supports respiratory health and pollutant clearance.'},
+        ],
+        cc:{
+            lungs:{cls:'inactive',sev:'LOW',sc:'sev-low',body:'Airways clear. Normal breathing capacity. No bronchospasm risk whatsoever.',stat:'Airway stress: <span>MINIMAL</span>'},
+            heart:{cls:'inactive',sev:'LOW',sc:'sev-low',body:'No cardiovascular strain. Heart functioning optimally in current conditions.',stat:'Cardiac risk elevation: <span>+0%</span>'},
+            brain:{cls:'inactive',sev:'LOW',sc:'sev-low',body:'Full cognitive function. No dizziness, headaches, or oxygen deprivation expected.',stat:'O₂ saturation impact: <span>NONE</span>'},
+            eyes:{cls:'inactive',sev:'LOW',sc:'sev-low',body:'Eyes, nose, and throat completely unaffected. Mucous membranes healthy.',stat:'Irritant exposure: <span>SAFE</span>'},
+            immune:{cls:'inactive',sev:'LOW',sc:'sev-low',body:'No inflammatory response. Safe for immunocompromised and elderly individuals.',stat:'Cytokine response: <span>NONE</span>'},
+            vuln:{cls:'inactive',sev:'LOW',sc:'sev-low',body:'Children, elderly, and pregnant individuals face no elevated risk whatsoever.',stat:'Vulnerable advisory: <span>NONE</span>'},
+        }
+    },
+    moderate: {
+        cls:'moderate', aqi:85, aqiPct:30, aqiLabel:'MODERATE', aqiColor:'var(--mod)',
+        desc:'Moderate conditions detected. Sensitive individuals — especially asthma patients — may experience mild symptoms. Limit prolonged outdoor exertion.',
+        tags:['⚠ Sensitive Groups','💊 Keep Inhaler Ready','🚶 Limit Exertion','😷 Consider Mask'],
+        actions:[
+            {n:'01',t:'Reduce Outdoor Exposure',d:'Limit strenuous activities. Short walks are acceptable — avoid areas near heavy traffic.',u:true},
+            {n:'02',t:'Use Preventive Inhaler',d:'If prescribed, use preventer inhaler before outdoor exposure. Keep reliever accessible.'},
+            {n:'03',t:'Wear N95/KN95 Mask',d:'Filtering masks reduce PM2.5 inhalation by up to 95% during outdoor activity.'},
+            {n:'04',t:'Keep Windows Closed',d:'Use air conditioning or purifiers indoors. Reduce outdoor air infiltration.'},
+        ],
+        cc:{
+            lungs:{cls:'warning',sev:'MODERATE',sc:'sev-med',body:'Mild airway inflammation possible. Asthma patients may notice increased wheeze or chest tightness during exertion.',stat:'Airway stress: <span style="color:var(--mod)">ELEVATED</span>'},
+            heart:{cls:'warning',sev:'MODERATE',sc:'sev-med',body:'Minor cardiovascular stress for sensitive groups. Slight BP elevation during outdoor exercise.',stat:'Cardiac risk elevation: <span style="color:var(--mod)">+12–18%</span>'},
+            brain:{cls:'inactive',sev:'LOW',sc:'sev-low',body:'Minor headaches possible with prolonged exposure. Cognitive function largely unaffected for healthy individuals.',stat:'O₂ saturation impact: <span>MINOR</span>'},
+            eyes:{cls:'warning',sev:'MODERATE',sc:'sev-med',body:'Mild eye irritation and nasal congestion possible. Rinse with clean water if irritated.',stat:'Irritant exposure: <span style="color:var(--mod)">MODERATE</span>'},
+            immune:{cls:'warning',sev:'MODERATE',sc:'sev-med',body:'Low-grade inflammatory response possible. Those with autoimmune conditions should take extra care.',stat:'Cytokine response: <span style="color:var(--mod)">MILD</span>'},
+            vuln:{cls:'warning',sev:'MODERATE',sc:'sev-med',body:'Children and elderly should limit outdoor playtime. Pregnant individuals should remain indoors when possible.',stat:'Vulnerable advisory: <span style="color:var(--mod)">CAUTION</span>'},
+        }
+    },
+    high: {
+        cls:'high', aqi:188, aqiPct:78, aqiLabel:'HAZARDOUS', aqiColor:'var(--danger)',
+        desc:'CRITICAL ALERT: Dangerous pollutant levels detected. All asthma patients must move indoors immediately. Severe respiratory failure risk.',
+        tags:['🚨 EVACUATE INDOORS','💊 USE INHALER NOW','🚫 NO Outdoor Activity','📞 Call Doctor'],
+        actions:[
+            {n:'🚨',t:'MOVE INDOORS IMMEDIATELY',d:'Do not remain outdoors. Close all windows and doors. Seal gaps with wet towels.',u:true},
+            {n:'02',t:'Use Rescue Inhaler NOW',d:'Do not wait for symptoms. Use bronchodilator immediately. Call emergency if breathing worsens.'},
+            {n:'03',t:'Run Air Purifier at MAX',d:'HEPA purifiers on highest setting. Cover window gaps to reduce outdoor air infiltration.'},
+            {n:'04',t:'Call Emergency if Needed',d:'If severe breathing difficulty develops, call emergency services immediately. Do not delay.'},
+        ],
+        cc:{
+            lungs:{cls:'danger',sev:'CRITICAL',sc:'sev-high',body:'SEVERE: Bronchospasm risk is immediate. Airways constrict rapidly. Asthma attack highly probable without rescue inhaler within minutes.',stat:'Airway stress: <span style="color:var(--danger)">CRITICAL — EMERGENCY</span>'},
+            heart:{cls:'danger',sev:'HIGH',sc:'sev-high',body:'PM2.5 particles entering bloodstream trigger systemic inflammation. Heart attack and stroke risk elevated 35–45%. Extreme danger for cardiac patients.',stat:'Cardiac risk elevation: <span style="color:var(--danger)">+35–45%</span>'},
+            brain:{cls:'danger',sev:'HIGH',sc:'sev-high',body:'Severe oxygen deprivation. Dizziness, confusion, fainting, and potential loss of consciousness with prolonged exposure outdoors.',stat:'O₂ saturation impact: <span style="color:var(--danger)">SEVERE DROP</span>'},
+            eyes:{cls:'danger',sev:'HIGH',sc:'sev-high',body:'Intense burning, tearing, and vision blur. NO₂ and SO₂ form acids on moist eye and throat surfaces causing chemical injury.',stat:'Irritant exposure: <span style="color:var(--danger)">TOXIC LEVELS</span>'},
+            immune:{cls:'danger',sev:'HIGH',sc:'sev-high',body:'Massive cytokine storm triggered. Systemic inflammatory response risks long-term organ damage and permanent lung scarring.',stat:'Cytokine response: <span style="color:var(--danger)">STORM RISK</span>'},
+            vuln:{cls:'danger',sev:'CRITICAL',sc:'sev-high',body:'EVACUATE NOW: Children face irreversible lung development damage. Elderly at extreme cardiac risk. Pregnant women risk pre-term complications immediately.',stat:'Vulnerable advisory: <span style="color:var(--danger)">EVACUATE NOW</span>'},
+        }
+    }
+};
+
+function getLevel(r) {
+    const l = (r||'').toLowerCase();
+    if (l.includes('severe')||l.includes('high')||l.includes('very')||l.includes('hazard')||l.includes('poor')||l.includes('critical')||l.includes('danger')) return 'high';
+    if (l.includes('moderate')||l.includes('medium')||l.includes('fair')||l.includes('sensitive')) return 'moderate';
+    return 'safe';
+}
+
+function updateSpark(id, val, max) {
+    const arr = hist[id];
+    arr.push(parseFloat(val||0));
+    if (arr.length > 10) arr.shift();
+    const el = document.getElementById('sp-'+id);
+    if (!el) return;
+    const m = Math.max(...arr, max*0.05)||1;
+    el.innerHTML = arr.map(v => `<div class="sp-bar" style="height:${Math.max(3,Math.round((v/m)*26))}px"></div>`).join('');
+    const pct = Math.min(100, Math.round((parseFloat(val||0)/max)*100));
+    const th = document.getElementById('th-'+id);
+    if (th) th.style.width = pct+'%';
+}
+
+function animVal(id, val) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const v = parseFloat(val||0);
+    el.textContent = (v % 1 === 0) ? v : v.toFixed(1);
+    el.classList.remove('val-up'); void el.offsetWidth; el.classList.add('val-up');
+}
+
+function applyCons(profile) {
+    const keys = ['lungs','heart','brain','eyes','immune','vuln'];
+    keys.forEach(k => {
+        const c = profile.cc[k];
+        const card = document.getElementById('cc-'+k);
+        if (!card) return;
+        card.className = 'cc ' + c.cls;
+        document.getElementById('cc-'+k+'-sev').textContent = c.sev;
+        document.getElementById('cc-'+k+'-sev').className = 'cc-sev ' + c.sc;
+        document.getElementById('cc-'+k+'-body').textContent = c.body;
+        document.getElementById('cc-'+k+'-stat').innerHTML = c.stat;
+    });
+}
+
+let _lastActionsLevel = '';
+function applyActions(profile) {
+    if (profile.cls === _lastActionsLevel) return;
+    _lastActionsLevel = profile.cls;
+    document.getElementById('act-grid').innerHTML = profile.actions.map(a =>
+        `<div class="act-card${a.u?' urgent':''}"><div class="act-num">${a.n}</div><div class="act-text"><strong>${a.t}</strong><span>${a.d}</span></div></div>`
+    ).join('');
+}
+
+let modalShown = false, lastLevel = '';
+
+function triggerAlerts(level, riskText) {
+    const overlay = document.getElementById('emergency-overlay');
+    const modal = document.getElementById('siren-modal');
+    const banner = document.getElementById('moderate-banner');
+    const wrapper = document.getElementById('main-wrapper');
+    overlay.style.display = 'none';
+    banner.classList.remove('active');
+    wrapper.classList.remove('banner-offset');
+    if (level === 'high') {
+        overlay.style.display = 'block';
+        if (level !== lastLevel) {
+            document.getElementById('modal-risk').textContent = riskText.toUpperCase();
+            modal.classList.add('active');
+            modalShown = true;
+        }
+    } else if (level === 'moderate') {
+        banner.classList.add('active');
+        wrapper.classList.add('banner-offset');
+    }
+    lastLevel = level;
+}
+
+function dismissModal() {
+    document.getElementById('siren-modal').classList.remove('active');
+}
+document.addEventListener('keydown', e => { if(e.key==='Escape') dismissModal(); });
+
+// Real AQI → strip % position
+function aqiToPercent(aqi) { return Math.min(97, Math.max(2, (aqi / 500) * 100)); }
+
+// Real AQI → risk level (ground truth — overrides text matching)
+function aqiToLevel(aqi) {
+    if (aqi <= 50)  return 'safe';
+    if (aqi <= 150) return 'moderate';
+    return 'high';
+}
+
+// Real AQI → display label
+function aqiToLabel(aqi) {
+    if (aqi <= 50)  return 'GOOD';
+    if (aqi <= 100) return 'MODERATE';
+    if (aqi <= 150) return 'SENSITIVE GROUPS';
+    if (aqi <= 200) return 'UNHEALTHY';
+    if (aqi <= 300) return 'VERY UNHEALTHY';
+    return 'HAZARDOUS';
+}
+
+function updateVitals(data) {
+    const spo2 = parseFloat(data.spo2 || 0);
+    const hr   = parseFloat(data.heart_rate || 0);
+
+    // ── SpO2 ──
+    if (spo2 > 0) {
+        // Small card
+        animVal('spo2', spo2.toFixed(1));
+        updateSpark('spo2', spo2, 100);
+        const spo2Pct = Math.min(100, Math.round((spo2/100)*100));
+        document.getElementById('th-spo2').style.width = spo2Pct + '%';
+
+        // Big vitals card
+        document.getElementById('big-spo2').innerHTML = spo2.toFixed(1) + '<span style="font-size:22px;opacity:0.6;">%</span>';
+        document.getElementById('spo2-bar').style.width = spo2Pct + '%';
+
+        let spo2Color, spo2Label, spo2Msg, showCons = true;
+        if (spo2 >= 97) {
+            spo2Color='#a855f7'; spo2Label='NORMAL — OPTIMAL'; showCons=false;
+            spo2Msg='';
+        } else if (spo2 >= 94) {
+            spo2Color='#fbbf24'; spo2Label='ACCEPTABLE — MONITOR';
+            spo2Msg='Mild oxygen reduction. Air pollutants may be reducing oxygen uptake. Monitor closely.';
+        } else if (spo2 >= 90) {
+            spo2Color='#f97316'; spo2Label='LOW — HYPOXIA WARNING';
+            spo2Msg='Hypoxia risk detected. Pollutant-induced bronchospasm reducing oxygen delivery. Use inhaler, move to fresh air immediately.';
+        } else {
+            spo2Color='#ff2d55'; spo2Label='CRITICAL — EMERGENCY';
+            spo2Msg='SEVERE HYPOXIA. SpO₂ below 90% is a medical emergency. Call ambulance immediately. Supplemental oxygen required.';
+        }
+
+        document.getElementById('big-spo2').style.color = spo2Color;
+        document.getElementById('spo2-bar').style.background = spo2Color;
+        document.getElementById('spo2-status').textContent = spo2Label;
+        document.getElementById('spo2-status').style.color = spo2Color;
+        document.getElementById('vitals-spo2').style.borderColor = spo2Color + '44';
+        document.getElementById('vitals-spo2').style.boxShadow = spo2 < 94 ? `0 0 30px ${spo2Color}22` : 'none';
+
+        const consEl = document.getElementById('spo2-consequence');
+        if (showCons && spo2Msg) { consEl.textContent = spo2Msg; consEl.style.display='block'; }
+        else { consEl.style.display='none'; }
+
+        // Small card alert badge
+        const alertEl = document.getElementById('alert-spo2');
+        alertEl.style.display = data.spo2_alert ? 'block' : 'none';
+        document.getElementById('dot-spo2').style.background = spo2Color;
+        document.getElementById('dot-spo2').style.boxShadow = `0 0 8px ${spo2Color}`;
+        if (spo2 < 94) {
+            document.getElementById('vitals-spo2').style.animation = 'spo2Pulse 1.5s ease-in-out infinite';
+        } else {
+            document.getElementById('vitals-spo2').style.animation = 'none';
+        }
+    }
+
+    // ── Heart Rate ──
+    if (hr > 0) {
+        animVal('heart_rate', Math.round(hr));
+        updateSpark('hr', hr, 180);
+        const hrPct = Math.min(100, Math.round((hr/180)*100));
+        document.getElementById('th-hr').style.width = hrPct + '%';
+
+        document.getElementById('big-hr').innerHTML = Math.round(hr) + '<span style="font-size:22px;opacity:0.6;">bpm</span>';
+        document.getElementById('hr-bar').style.width = hrPct + '%';
+
+        // Animate heartbeat emoji speed based on HR
+        const beatDur = hr > 0 ? (60/hr).toFixed(2) + 's' : '1s';
+        document.getElementById('heart-emoji').style.animationDuration = beatDur;
+
+        let hrColor, hrLabel, hrMsg, hrShowCons = true;
+        if (hr >= 60 && hr <= 100) {
+            hrColor='#ec4899'; hrLabel='NORMAL — ' + Math.round(hr) + ' BPM'; hrShowCons=false; hrMsg='';
+        } else if (hr < 60) {
+            hrColor='#0ea5e9'; hrLabel='BRADYCARDIA — TOO SLOW';
+            hrMsg='Heart rate below 60 bpm. CO and low oxygen exposure can depress cardiac activity. Seek medical attention.';
+        } else if (hr <= 110) {
+            hrColor='#fbbf24'; hrLabel='ELEVATED — MONITOR';
+            hrMsg='Slightly elevated heart rate. Air pollutants are causing cardiovascular stress. Rest and reduce exposure.';
+        } else {
+            hrColor='#ff2d55'; hrLabel='TACHYCARDIA — CRITICAL';
+            hrMsg='Heart rate above 110 bpm. Severe PM2.5/NO₂ exposure causing acute cardiovascular stress. Emergency care needed.';
+        }
+
+        document.getElementById('big-hr').style.color = hrColor;
+        document.getElementById('hr-bar').style.background = hrColor;
+        document.getElementById('hr-status').textContent = hrLabel;
+        document.getElementById('hr-status').style.color = hrColor;
+        document.getElementById('vitals-hr').style.borderColor = hrColor + '44';
+        document.getElementById('vitals-hr').style.boxShadow = (hr < 50 || hr > 110) ? `0 0 30px ${hrColor}22` : 'none';
+
+        const hrConsEl = document.getElementById('hr-consequence');
+        if (hrShowCons && hrMsg) { hrConsEl.textContent = hrMsg; hrConsEl.style.display='block'; }
+        else { hrConsEl.style.display='none'; }
+
+        const alertHr = document.getElementById('alert-hr');
+        alertHr.style.display = data.hr_alert ? 'block' : 'none';
+        document.getElementById('dot-hr').style.background = hrColor;
+        document.getElementById('dot-hr').style.boxShadow = `0 0 8px ${hrColor}`;
+    }
+}
+
+// ── Canvas Gauge ──────────────────────────────────────────
+let _gaugeAqi = 0, _gaugeTarget = 0, _gaugeRaf = null;
+function drawGauge(targetAqi) {
+    _gaugeTarget = targetAqi;
+    if (_gaugeRaf) return;       // already animating
+    const canvas = document.getElementById('gauge-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = 200, H = 200, cx = 100, cy = 100, R = 80, LW = 14;
+    const START = Math.PI * 0.75;          // 135°
+    const SWEEP = Math.PI * 1.5;           // 270°
+    const END   = START + SWEEP;
+
+    function getColor(frac) {
+        // green → amber → orange → red → purple
+        const stops = [
+            [0.00, [78, 203, 141]],
+            [0.25, [212, 180, 58]],
+            [0.50, [192, 120, 48]],
+            [0.75, [192, 57, 75]],
+            [1.00, [139, 92, 246]]
+        ];
+        for (let i = 0; i < stops.length - 1; i++) {
+            const [t0, c0] = stops[i], [t1, c1] = stops[i+1];
+            if (frac <= t1) {
+                const t = (frac - t0) / (t1 - t0);
+                return `rgb(${Math.round(c0[0]+(c1[0]-c0[0])*t)},${Math.round(c0[1]+(c1[1]-c0[1])*t)},${Math.round(c0[2]+(c1[2]-c0[2])*t)})`;
+            }
+        }
+        return '#8b5cf6';
+    }
+
+    function frame() {
+        _gaugeAqi += (_gaugeTarget - _gaugeAqi) * 0.07;
+        if (Math.abs(_gaugeTarget - _gaugeAqi) < 0.3) { _gaugeAqi = _gaugeTarget; _gaugeRaf = null; }
+        else _gaugeRaf = requestAnimationFrame(frame);
+
+        ctx.clearRect(0, 0, W, H);
+
+        // — Outer decorative ring
+        ctx.beginPath(); ctx.arc(cx, cy, R + 18, 0, Math.PI*2);
+        ctx.strokeStyle = 'rgba(91,143,255,0.1)'; ctx.lineWidth = 1; ctx.stroke();
+
+        // — Track arc (background)
+        ctx.beginPath(); ctx.arc(cx, cy, R, START, END);
+        ctx.strokeStyle = 'rgba(91,143,255,0.07)'; ctx.lineWidth = LW;
+        ctx.lineCap = 'round'; ctx.stroke();
+
+        // — Spectrum gradient arc (thin, decorative, full sweep)
+        const segments = 60;
+        for (let i = 0; i < segments; i++) {
+            const f0 = i / segments, f1 = (i+1) / segments;
+            const a0 = START + f0*SWEEP, a1 = START + f1*SWEEP;
+            ctx.beginPath(); ctx.arc(cx, cy, R + 10, a0, a1);
+            ctx.strokeStyle = getColor(f0); ctx.lineWidth = 3;
+            ctx.lineCap = 'butt'; ctx.stroke();
+        }
+
+        // — Filled arc (AQI value)
+        const frac = _gaugeAqi / 500;
+        if (frac > 0) {
+            ctx.beginPath(); ctx.arc(cx, cy, R, START, START + frac*SWEEP);
+            ctx.strokeStyle = getColor(frac); ctx.lineWidth = LW;
+            ctx.lineCap = 'round'; ctx.stroke();
+        }
+
+        // — Tick marks (5 major ticks: 0,125,250,375,500)
+        for (let i = 0; i <= 4; i++) {
+            const angle = START + (i/4)*SWEEP;
+            const x1 = cx + Math.cos(angle)*(R - LW/2 - 4);
+            const y1 = cy + Math.sin(angle)*(R - LW/2 - 4);
+            const x2 = cx + Math.cos(angle)*(R + LW/2 + 4);
+            const y2 = cy + Math.sin(angle)*(R + LW/2 + 4);
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+            ctx.strokeStyle = 'rgba(91,143,255,0.3)'; ctx.lineWidth = 1.5;
+            ctx.lineCap = 'round'; ctx.stroke();
+        }
+
+        // — Needle
+        const needleAngle = START + frac * SWEEP;
+        const nx = cx + Math.cos(needleAngle) * (R - 8);
+        const ny = cy + Math.sin(needleAngle) * (R - 8);
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(nx, ny);
+        ctx.strokeStyle = '#5b8fff'; ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round'; ctx.stroke();
+
+        // — Center cap
+        ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI*2);
+        ctx.fillStyle = '#5b8fff'; ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy, 3.5, 0, Math.PI*2);
+        ctx.fillStyle = '#060c18'; ctx.fill();
+    }
+    frame();
+}
+// Draw empty gauge on load
+drawGauge(0);
+
+function updateDashboard() {
+    fetch('/get_status')
+        .then(r => r.json())
+        .then(data => {
+            // Use REAL AQI from server as ground truth for colors/pointer/alerts
+            const realAqi = (data.aqi && data.aqi > 0) ? data.aqi : null;
+            const level   = realAqi ? aqiToLevel(realAqi) : getLevel(data.risk||'');
+            const P       = PROFILES[level];
+
+            const displayAqi   = realAqi || P.aqi;
+            const displayPct   = realAqi ? aqiToPercent(realAqi) : P.aqiPct;
+            const displayLabel = realAqi ? aqiToLabel(realAqi)   : P.aqiLabel;
+            const displayColor = level==='safe' ? 'var(--safe)' : level==='moderate' ? 'var(--mod)' : 'var(--danger)';
+
+            // Hero
+            document.getElementById('risk-hero').className = 'risk-hero ' + P.cls;
+            document.getElementById('risk-text').textContent = data.risk || 'SAFE';
+            document.getElementById('risk-desc').textContent = P.desc;
+            document.getElementById('radar-aqi').textContent = displayAqi;
+            // Short category label
+            const shortCat = {'Good':'GOOD','Moderate':'MODERATE','Unhealthy for Sensitive Groups':'SENSITIVE','Unhealthy':'UNHEALTHY','Very Unhealthy':'VERY HIGH','Hazardous':'HAZARDOUS'};
+            document.getElementById('gauge-cat').textContent = shortCat[displayLabel] || displayLabel;
+            // Draw canvas gauge
+            drawGauge(Math.min(displayAqi, 500));
+            document.getElementById('timestamp').textContent = data.timestamp || '--:--:--';
+
+            // Tags
+            const newTags = P.tags.map(t=>`<div class="q-tag">${t}</div>`).join(''); const tagsEl = document.getElementById('quick-tags'); if (tagsEl.innerHTML !== newTags) tagsEl.innerHTML = newTags;
+
+            // AQI strip removed — gauge shows AQI
+
+            // Sensors
+            animVal('pm25',data.pm25); updateSpark('pm25',data.pm25,250);
+            animVal('pm10',data.pm10); updateSpark('pm10',data.pm10,430);
+            animVal('no2',data.no2);   updateSpark('no2',data.no2,2);
+            animVal('so2',data.so2);   updateSpark('so2',data.so2,1);
+            animVal('co',data.co);     updateSpark('co',data.co,50);
+            animVal('o3',data.o3);     updateSpark('o3',data.o3,0.5);
+            animVal('temp',data.temp); updateSpark('temp',data.temp,50);
+            animVal('hum',data.humidity); updateSpark('hum',data.humidity,100);
+
+            // Vitals — SpO2 & Heart Rate
+            updateVitals(data);
+
+            // Consequences + Actions
+            applyCons(P); applyActions(P);
+            document.getElementById('cons-panel').className = 'cons-panel' + (level!=='safe' ? ' elevated':'');
+
+            // Alerts — AQI-derived level is ground truth, not just model text
+            triggerAlerts(level, displayLabel);
+        })
+        .catch(()=>{});
+}
+
+updateDashboard();
+setInterval(updateDashboard, 30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AsthmaGuard — Sensor Test Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #03050a;
+            --panel: rgba(10,16,32,0.95);
+            --border: rgba(60,140,255,0.12);
+            --accent: #00c8ff;
+            --safe: #00ff9d;
+            --mod: #ffcc00;
+            --danger: #ff2d55;
+            --text: #9bb8e8;
+            --dim: #2a4060;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; padding: 30px 20px;
+        }
+        body::before {
+            content:''; position:fixed; inset:0; z-index:0;
+            background-image: linear-gradient(rgba(0,100,255,0.03) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0,100,255,0.03) 1px, transparent 1px);
+            background-size: 44px 44px; pointer-events:none;
+        }
+        .container { position:relative; z-index:1; max-width:980px; margin:0 auto; }
+
+        /* HEADER */
+        header { text-align:center; margin-bottom:28px; }
+        .badge { display:inline-flex; align-items:center; gap:8px; background:rgba(0,200,255,0.07); border:1px solid rgba(0,200,255,0.2); border-radius:50px; padding:6px 18px; font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); letter-spacing:3px; margin-bottom:14px; }
+        .dot { width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); animation:blink 1.4s infinite; }
+        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+        header h1 { font-family:'Orbitron',monospace; font-size:26px; font-weight:900; color:#fff; letter-spacing:3px; }
+        header p { font-size:13px; color:var(--dim); margin-top:6px; letter-spacing:1px; }
+
+        /* SERVER CONFIG BAR */
+        .server-bar {
+            background: var(--panel); border:1px solid var(--border);
+            border-radius:14px; padding:16px 20px; margin-bottom:20px;
+            display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+        }
+        .server-bar label { font-size:10px; letter-spacing:3px; color:var(--dim); text-transform:uppercase; white-space:nowrap; }
+        .server-input {
+            flex:1; min-width:200px; background:rgba(0,0,0,0.4);
+            border:1px solid var(--border); border-radius:8px;
+            padding:8px 14px; color:#fff; font-family:'Space Mono',monospace; font-size:12px;
+            outline:none; transition:border-color 0.3s;
+        }
+        .server-input:focus { border-color:rgba(0,200,255,0.4); }
+        .ping-btn {
+            padding:8px 20px; border-radius:8px; border:1px solid rgba(0,200,255,0.3);
+            background:rgba(0,200,255,0.07); color:var(--accent);
+            font-family:'Orbitron',monospace; font-size:10px; font-weight:700;
+            letter-spacing:1px; cursor:pointer; transition:all 0.3s; white-space:nowrap;
+        }
+        .ping-btn:hover { background:rgba(0,200,255,0.15); }
+        .server-status {
+            display:flex; align-items:center; gap:7px;
+            font-family:'Space Mono',monospace; font-size:11px;
+            padding:6px 14px; border-radius:8px;
+        }
+        .status-dot { width:8px; height:8px; border-radius:50%; }
+        .server-status.connected { background:rgba(0,255,157,0.08); color:var(--safe); border:1px solid rgba(0,255,157,0.2); }
+        .server-status.connected .status-dot { background:var(--safe); box-shadow:0 0 8px var(--safe); animation:blink 1.4s infinite; }
+        .server-status.disconnected { background:rgba(255,45,85,0.08); color:var(--danger); border:1px solid rgba(255,45,85,0.2); }
+        .server-status.disconnected .status-dot { background:var(--danger); }
+        .server-status.checking { background:rgba(255,200,0,0.08); color:var(--mod); border:1px solid rgba(255,200,0,0.2); }
+        .server-status.checking .status-dot { background:var(--mod); animation:blink 0.6s infinite; }
+
+        /* DASHBOARD LINK */
+        .dash-link {
+            display:flex; align-items:center; gap:12px;
+            background:rgba(0,200,255,0.05); border:1px solid rgba(0,200,255,0.15);
+            border-radius:12px; padding:13px 18px; margin-bottom:24px;
+            font-size:13px; color:var(--text); text-decoration:none; transition:all 0.3s; cursor:pointer;
+        }
+        .dash-link:hover { background:rgba(0,200,255,0.1); color:#fff; }
+        .dash-link span:last-child { margin-left:auto; font-size:10px; color:var(--dim); letter-spacing:2px; font-family:'Space Mono',monospace; }
+
+        /* PRESETS */
+        .sec-label { font-size:10px; letter-spacing:4px; color:var(--dim); text-transform:uppercase; margin-bottom:12px; }
+        .presets { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:24px; }
+        .preset-btn {
+            flex:1; min-width:150px; padding:14px 16px; border-radius:14px;
+            border:1.5px solid transparent; cursor:pointer;
+            font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700;
+            transition:all 0.25s; display:flex; flex-direction:column; align-items:center; gap:4px;
+            background:rgba(255,255,255,0.02);
+        }
+        .preset-btn .pi { font-size:24px; }
+        .preset-btn .pn { font-size:12px; font-weight:700; }
+        .preset-btn .ps { font-size:9px; letter-spacing:1px; opacity:0.65; }
+        .p-safe { border-color:rgba(0,255,157,0.2); color:var(--safe); }
+        .p-safe:hover,.p-safe.active { background:rgba(0,255,157,0.12); border-color:var(--safe); box-shadow:0 0 20px rgba(0,255,157,0.15); }
+        .p-mod { border-color:rgba(255,204,0,0.2); color:var(--mod); }
+        .p-mod:hover,.p-mod.active { background:rgba(255,204,0,0.12); border-color:var(--mod); box-shadow:0 0 20px rgba(255,200,0,0.15); }
+        .p-high { border-color:rgba(255,45,85,0.2); color:var(--danger); }
+        .p-high:hover,.p-high.active { background:rgba(255,45,85,0.12); border-color:var(--danger); box-shadow:0 0 20px rgba(255,45,85,0.2); }
+        .p-haz { border-color:rgba(200,0,255,0.2); color:#bf80ff; }
+        .p-haz:hover,.p-haz.active { background:rgba(180,0,255,0.12); border-color:#bf80ff; box-shadow:0 0 20px rgba(180,0,255,0.2); }
+        .p-ind { border-color:rgba(0,200,255,0.2); color:var(--accent); }
+        .p-ind:hover,.p-ind.active { background:rgba(0,200,255,0.12); border-color:var(--accent); box-shadow:0 0 20px rgba(0,200,255,0.15); }
+
+        /* RISK SELECTOR */
+        .risk-section { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:18px 20px; margin-bottom:20px; }
+        .risk-btns { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+        .risk-btn {
+            flex:1; min-width:120px; padding:9px 14px; border-radius:9px;
+            border:1px solid transparent; cursor:pointer;
+            font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:700;
+            transition:all 0.25s; background:rgba(255,255,255,0.02);
+        }
+        .rb-safe { color:var(--safe); border-color:rgba(0,255,157,0.2); }
+        .rb-safe.active,.rb-safe:hover { background:rgba(0,255,157,0.1); border-color:var(--safe); }
+        .rb-mod { color:var(--mod); border-color:rgba(255,204,0,0.2); }
+        .rb-mod.active,.rb-mod:hover { background:rgba(255,204,0,0.1); border-color:var(--mod); }
+        .rb-high { color:var(--danger); border-color:rgba(255,45,85,0.2); }
+        .rb-high.active,.rb-high:hover { background:rgba(255,45,85,0.1); border-color:var(--danger); }
+        .rb-sev { color:#ff80ab; border-color:rgba(255,80,120,0.2); }
+        .rb-sev.active,.rb-sev:hover { background:rgba(255,80,120,0.1); border-color:#ff80ab; }
+        .rb-haz { color:#ff6040; border-color:rgba(255,80,40,0.2); }
+        .rb-haz.active,.rb-haz:hover { background:rgba(255,80,40,0.1); border-color:#ff6040; }
+
+        /* SLIDERS */
+        .sliders-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:12px; margin-bottom:20px; }
+        .sl-card { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px 18px; transition:border-color 0.3s; }
+        .sl-card:hover { border-color:rgba(0,200,255,0.2); }
+        .sl-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+        .sl-label { display:flex; align-items:center; gap:8px; }
+        .sl-ico { font-size:17px; }
+        .sl-name { font-size:10px; letter-spacing:3px; color:var(--dim); text-transform:uppercase; }
+        .sl-val { font-family:'Orbitron',monospace; font-size:17px; font-weight:700; color:#fff; background:rgba(0,0,0,0.3); border:1px solid var(--border); border-radius:7px; padding:3px 10px; min-width:75px; text-align:center; }
+        .sl-unit { font-size:9px; color:var(--dim); text-align:right; margin-top:1px; }
+        input[type=range] { -webkit-appearance:none; width:100%; height:5px; border-radius:5px; background:rgba(255,255,255,0.06); outline:none; cursor:pointer; margin-top:4px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:17px; height:17px; border-radius:50%; background:#fff; cursor:pointer; border:2px solid var(--accent); box-shadow:0 0 8px rgba(0,200,255,0.4); }
+        .sl-hints { display:flex; justify-content:space-between; margin-top:5px; }
+        .sl-hint { font-size:9px; }
+
+        /* PAYLOAD PREVIEW */
+        .preview { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 18px; margin-bottom:18px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+        .preview-lbl { font-size:10px; letter-spacing:3px; color:var(--dim); text-transform:uppercase; }
+        .chip { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:7px; padding:3px 10px; font-family:'Space Mono',monospace; font-size:10px; color:var(--text); }
+        .chip span { color:#fff; }
+
+        /* SEND */
+        .send-row { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+        .send-btn {
+            flex:1; min-width:200px; padding:15px; border-radius:12px; border:none;
+            cursor:pointer; font-family:'Orbitron',monospace; font-size:13px; font-weight:700;
+            letter-spacing:2px; color:#fff; transition:all 0.3s;
+            background:linear-gradient(135deg, #0055dd, #00c8ff);
+            box-shadow:0 4px 20px rgba(0,100,255,0.35);
+        }
+        .send-btn:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(0,150,255,0.5); }
+        .send-btn:active { transform:scale(0.97); }
+        .send-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+        .auto-btn {
+            padding:15px 22px; border-radius:12px; border:1.5px solid rgba(0,255,157,0.3);
+            cursor:pointer; font-family:'Orbitron',monospace; font-size:11px; font-weight:700;
+            letter-spacing:1px; color:var(--safe); background:rgba(0,255,157,0.05); transition:all 0.3s;
+        }
+        .auto-btn.on { background:rgba(0,255,157,0.12); border-color:var(--safe); animation:autoPulse 1s ease-in-out infinite; }
+        @keyframes autoPulse { 0%,100%{box-shadow:none;} 50%{box-shadow:0 0 18px rgba(0,255,157,0.25);} }
+
+        /* RESULT TOAST */
+        #toast {
+            border-radius:10px; padding:11px 18px; margin-bottom:16px;
+            font-family:'Space Mono',monospace; font-size:12px; font-weight:700;
+            display:none; animation:toastPop 0.4s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        @keyframes toastPop { from{transform:scale(0.85);opacity:0;} to{transform:scale(1);opacity:1;} }
+        #toast.ok { background:rgba(0,255,157,0.1); border:1px solid rgba(0,255,157,0.3); color:var(--safe); display:block; }
+        #toast.err { background:rgba(255,45,85,0.1); border:1px solid rgba(255,45,85,0.3); color:var(--danger); display:block; }
+
+        /* LOG */
+        .log-head { display:flex; align-items:center; margin-bottom:10px; }
+        .log-head span { font-size:10px; letter-spacing:4px; color:var(--dim); text-transform:uppercase; }
+        .clear-btn { margin-left:auto; background:none; border:1px solid var(--dim); border-radius:6px; padding:3px 10px; color:var(--dim); font-size:10px; cursor:pointer; font-family:'Space Mono',monospace; }
+        .clear-btn:hover { color:var(--text); border-color:var(--text); }
+        .log-box { background:rgba(0,0,0,0.45); border:1px solid var(--border); border-radius:12px; padding:14px 16px; height:190px; overflow-y:auto; font-family:'Space Mono',monospace; font-size:11px; line-height:1.9; }
+        .log-box::-webkit-scrollbar { width:3px; }
+        .log-box::-webkit-scrollbar-thumb { background:var(--dim); border-radius:3px; }
+        .le { display:flex; gap:10px; }
+        .lt { color:var(--dim); min-width:76px; }
+        .lm.ok { color:var(--safe); }
+        .lm.warn { color:var(--mod); }
+        .lm.err { color:var(--danger); }
+        .lm.info { color:var(--accent); }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <header>
+        <div><div class="badge"><div class="dot"></div>SENSOR SIMULATOR</div></div>
+        <h1>TEST CONTROL PANEL</h1>
+        <p>Inject real sensor values into AsthmaGuard AI live</p>
+    </header>
+
+    <!-- SERVER CONFIG -->
+    <div class="server-bar">
+        <label>Flask Server URL</label>
+        <input class="server-input" id="server-url" type="text" value="http://localhost:5000" placeholder="http://localhost:5000"/>
+        <button class="ping-btn" onclick="pingServer()">⟳ TEST CONNECTION</button>
+        <div class="server-status checking" id="server-status">
+            <div class="status-dot"></div>
+            <span id="status-text">Checking...</span>
+        </div>
+    </div>
+
+    <!-- DASHBOARD LINK -->
+    <div class="dash-link" onclick="openDashboard()">
+        <span>🫁</span>
+        <span>Open AsthmaGuard Dashboard</span>
+        <span id="dash-url-label">localhost:5000</span>
+    </div>
+
+    <!-- PRESETS -->
+    <div class="sec-label">⚡ Quick Scenario Presets</div>
+    <div class="presets">
+        <button class="preset-btn p-safe" onclick="applyPreset('safe')"><div class="pi">🌿</div><div class="pn">SAFE DAY</div><div class="ps">WHO LIMITS MET</div></button>
+        <button class="preset-btn p-mod"  onclick="applyPreset('moderate')"><div class="pi">⚡</div><div class="pn">MODERATE</div><div class="ps">SENSITIVE AFFECTED</div></button>
+        <button class="preset-btn p-high" onclick="applyPreset('high')"><div class="pi">🚨</div><div class="pn">HIGH RISK</div><div class="ps">ASTHMA DANGER</div></button>
+        <button class="preset-btn p-haz"  onclick="applyPreset('hazardous')"><div class="pi">☠️</div><div class="pn">HAZARDOUS</div><div class="ps">EMERGENCY ALERT</div></button>
+        <button class="preset-btn p-ind"  onclick="applyPreset('industrial')"><div class="pi">🏭</div><div class="pn">INDUSTRIAL</div><div class="ps">HIGH SO₂ + NO₂</div></button>
+    </div>
+
+
+    <!-- SLIDERS -->
+    <div class="sliders-grid">
+
+        <div class="sl-card">
+            <div class="sl-top"><div class="sl-label"><span class="sl-ico">💨</span><span class="sl-name">PM 2.5</span></div><div><div class="sl-val" id="v-pm25">12</div><div class="sl-unit">μg/m³</div></div></div>
+            <input type="range" id="sl-pm25" min="0" max="300" value="12" oninput="sync('pm25',this.value,1)">
+            <div class="sl-hints"><span class="sl-hint" style="color:var(--safe)">Safe &lt;12</span><span class="sl-hint" style="color:var(--mod)">Mod &lt;35</span><span class="sl-hint" style="color:var(--danger)">Bad &gt;75</span></div>
+        </div>
+
+        <div class="sl-card">
+            <div class="sl-top"><div class="sl-label"><span class="sl-ico">🌫️</span><span class="sl-name">PM 10</span></div><div><div class="sl-val" id="v-pm10">20</div><div class="sl-unit">μg/m³</div></div></div>
+            <input type="range" id="sl-pm10" min="0" max="500" value="20" oninput="sync('pm10',this.value,1)">
+            <div class="sl-hints"><span class="sl-hint" style="color:var(--safe)">&lt;20</span><span class="sl-hint" style="color:var(--mod)">&lt;100</span><span class="sl-hint" style="color:var(--danger)">&gt;250</span></div>
+        </div>
+
+        <div class="sl-card">
+            <div class="sl-top"><div class="sl-label"><span class="sl-ico">🔴</span><span class="sl-name">NO₂</span></div><div><div class="sl-val" id="v-no2">0.02</div><div class="sl-unit">ppm</div></div></div>
+            <input type="range" id="sl-no2" min="0" max="200" value="2" oninput="sync('no2',this.value,0.01)">
+            <div class="sl-hints"><span class="sl-hint" style="color:var(--safe)">&lt;0.05</span><span class="sl-hint" style="color:var(--mod)">&lt;0.1</span><span class="sl-hint" style="color:var(--danger)">&gt;0.35</span></div>
+        </div>
+
+        <div class="sl-card">
+            <div class="sl-top"><div class="sl-label"><span class="sl-ico">⚗️</span><span class="sl-name">SO₂</span></div><div><div class="sl-val" id="v-so2">0.01</div><div class="sl-unit">ppm</div></div></div>
+            <input type="range" id="sl-so2" min="0" max="100" value="1" oninput="sync('so2',this.value,0.01)">
+            <div class="sl-hints"><span class="sl-hint" style="color:var(--safe)">&lt;0.02</span><span class="sl-hint" style="color:var(--mod)">&lt;0.1</span><span class="sl-hint" style="color:var(--danger)">&gt;0.3</span></div>
+        </div>
+
+        <div class="sl-card">
+            <div class="sl-top"><div class="sl-label"><span class="sl-ico">💭</span><span class="sl-name">CO</span></div><div><div class="sl-val" id="v-co">1.0</div><div class="sl-unit">ppm</div></div></div>
+            <input type="range" id="sl-co" min="0" max="500" value="10" oninput="sync('co',this.value,0.1)">
+            <div class="sl-hints"><span class="sl-hint" style="color:var(--safe)">&lt;4</span><span class="sl-hint" style="color:var(--mod)">&lt;10</span><span class="sl-hint" style="color:var(--danger)">&gt;35</span></div>
+        </div>
+
+        <div class="sl-card">
+            <div class="sl-top"><div class="sl-label"><span class="sl-ico">🌀</span><span class="sl-name">Ozone O₃</span></div><div><div class="sl-val" id="v-o3">0.02</div><div class="sl-unit">ppm</div></div></div>
+            <input type="range" id="sl-o3" min="0" max="100" value="2" oninput="sync('o3',this.value,0.01)">
+            <div class="sl-hints"><span class="sl-hint" style="color:var(--safe)">&lt;0.05</span><span class="sl-hint" style="color:var(--mod)">&lt;0.07</span><span class="sl-hint" style="color:var(--danger)">&gt;0.1</span></div>
+        </div>
+
+        <div class="sl-card">
+            <div class="sl-top"><div class="sl-label"><span class="sl-ico">🌡️</span><span class="sl-name">Temperature</span></div><div><div class="sl-val" id="v-temp">28</div><div class="sl-unit">°C</div></div></div>
+            <input type="range" id="sl-temp" min="-10" max="55" value="28" oninput="sync('temp',this.value,1)">
+            <div class="sl-hints"><span class="sl-hint" style="color:var(--safe)">Comfort 18–26°</span><span class="sl-hint" style="color:var(--danger)">High &gt;40°</span></div>
+        </div>
+
+        <div class="sl-card">
+            <div class="sl-top"><div class="sl-label"><span class="sl-ico">💧</span><span class="sl-name">Humidity</span></div><div><div class="sl-val" id="v-hum">55</div><div class="sl-unit">%</div></div></div>
+            <input type="range" id="sl-hum" min="0" max="100" value="55" oninput="sync('hum',this.value,1)">
+            <div class="sl-hints"><span class="sl-hint" style="color:var(--safe)">Ideal 40–60%</span><span class="sl-hint" style="color:var(--mod)">High &gt;80%</span></div>
+        </div>
+
+        <div class="sl-card" style="border-color:rgba(168,85,247,0.2);">
+            <div class="sl-top"><div class="sl-label"><span class="sl-ico">🩸</span><span class="sl-name">SpO₂</span></div><div><div class="sl-val" id="v-spo2" style="color:#a855f7;">98</div><div class="sl-unit">%</div></div></div>
+            <input type="range" id="sl-spo2" min="80" max="100" value="98" oninput="sync('spo2',this.value,1)">
+            <div class="sl-hints"><span class="sl-hint" style="color:var(--safe)">Normal ≥97%</span><span class="sl-hint" style="color:var(--mod)">Low &lt;94%</span><span class="sl-hint" style="color:var(--danger)">Critical &lt;90%</span></div>
+        </div>
+
+        <div class="sl-card" style="border-color:rgba(236,72,153,0.2);">
+            <div class="sl-top"><div class="sl-label"><span class="sl-ico">❤️</span><span class="sl-name">Heart Rate</span></div><div><div class="sl-val" id="v-heart_rate" style="color:#ec4899;">72</div><div class="sl-unit">bpm</div></div></div>
+            <input type="range" id="sl-heart_rate" min="30" max="200" value="72" oninput="sync('heart_rate',this.value,1)">
+            <div class="sl-hints"><span class="sl-hint" style="color:var(--safe)">Normal 60–100</span><span class="sl-hint" style="color:var(--mod)">&gt;110 elevated</span><span class="sl-hint" style="color:var(--danger)">&gt;150 critical</span></div>
+        </div>
+
+    </div>
+
+    <!-- PAYLOAD PREVIEW -->
+    <div class="preview">
+        <span class="preview-lbl">Payload</span>
+        <div class="chip">PM2.5: <span id="pb-pm25">12</span></div>
+        <div class="chip">PM10: <span id="pb-pm10">20</span></div>
+        <div class="chip">NO₂: <span id="pb-no2">0.02</span></div>
+        <div class="chip">SO₂: <span id="pb-so2">0.01</span></div>
+        <div class="chip">CO: <span id="pb-co">1.0</span></div>
+        <div class="chip">O₃: <span id="pb-o3">0.02</span></div>
+        <div class="chip">Temp: <span id="pb-temp">28</span>°C</div>
+        <div class="chip">Hum: <span id="pb-hum">55</span>%</div>
+        <div class="chip" style="border-color:rgba(168,85,247,0.3)">SpO₂: <span id="pb-spo2" style="color:#a855f7;">98</span>%</div>
+        <div class="chip" style="border-color:rgba(236,72,153,0.3)">HR: <span id="pb-heart_rate" style="color:#ec4899;">72</span>bpm</div>
+        <div class="chip" style="border-color:rgba(0,200,255,0.2); margin-left:auto;">→ <span id="pb-url" style="color:var(--accent)">localhost:5000</span></div>
+    </div>
+
+    <div id="toast"></div>
+
+    <!-- SEND ROW -->
+    <div class="send-row">
+        <button class="send-btn" id="send-btn" onclick="sendOnce()">🚀 SEND TO DASHBOARD</button>
+        <button class="auto-btn" id="auto-btn" onclick="toggleAuto()">⟳ AUTO-SEND: OFF</button>
+    </div>
+
+    <!-- LOG -->
+    <div class="log-head">
+        <span>📋 Transmission Log</span>
+        <button class="clear-btn" onclick="clearLog()">CLEAR</button>
+    </div>
+    <div class="log-box" id="log-box">
+        <div class="le"><span class="lt">--:--:--</span><span class="lm info">▸ Panel ready. Configure server URL above and click TEST CONNECTION first.</span></div>
+    </div>
+
+</div>
+<script>
+    // ── STATE ──
+    const vals = { pm25:12, pm10:20, no2:0.02, so2:0.01, co:1.0, o3:0.02, temp:28, hum:55, spo2:98, heart_rate:72 };
+
+    let autoTimer = null;
+    let serverConnected = false;
+
+    // ── SERVER URL ──
+    function getServerURL() {
+        return document.getElementById('server-url').value.replace(/\/$/, '');
+    }
+
+    function openDashboard() {
+        window.open(getServerURL() + '/', '_blank');
+    }
+
+    // ── PING SERVER ──
+    async function pingServer() {
+        const url = getServerURL();
+        const statusEl = document.getElementById('server-status');
+        const statusText = document.getElementById('status-text');
+        document.getElementById('pb-url').textContent = url.replace('http://','');
+        document.getElementById('dash-url-label').textContent = url.replace('http://','');
+
+        statusEl.className = 'server-status checking';
+        statusText.textContent = 'Checking...';
+        log(`Pinging ${url}/get_status ...`, 'info');
+
+        try {
+            const res = await fetch(url + '/get_status', { signal: AbortSignal.timeout(4000) });
+            if (res.ok) {
+                serverConnected = true;
+                statusEl.className = 'server-status connected';
+                statusText.textContent = 'CONNECTED ✓';
+                document.getElementById('send-btn').disabled = false;
+                log(`✓ Flask server reachable at ${url}`, 'ok');
+                toast(`✅ Connected to Flask server at ${url}`, 'ok');
+            } else {
+                throw new Error('Non-OK response');
+            }
+        } catch(e) {
+            serverConnected = false;
+            statusEl.className = 'server-status disconnected';
+            statusText.textContent = 'NOT REACHABLE ✗';
+            log(`✗ Cannot reach ${url} — Is Flask running? (python app.py)`, 'err');
+            toast(`❌ Cannot reach ${url}. Make sure Flask is running with: python app.py`, 'err');
+        }
+    }
+
+    // ── SYNC SLIDER ──
+    function sync(key, raw, scale) {
+        const v = parseFloat((raw * scale).toFixed(scale < 1 ? 2 : 0));
+        vals[key] = v;
+        document.getElementById('v-' + key).textContent = v;
+        document.getElementById('pb-' + key).textContent = v;
+    }
+
+    // ── RISK SELECTOR ──
+    function setRiskMode(mode) {
+        riskMode = mode;
+        const autoBtn   = document.getElementById('mode-auto');
+        const manualBtn = document.getElementById('mode-manual');
+        const autoInfo  = document.getElementById('mode-auto-info');
+        const manualDiv = document.getElementById('mode-manual-btns');
+        if (mode === 'auto') {
+            currentRisk = null;
+            autoBtn.style.background   = 'rgba(0,255,157,0.15)';
+            autoBtn.style.borderColor  = 'rgba(0,255,157,0.4)';
+            autoBtn.style.color        = 'var(--safe)';
+            manualBtn.style.background = 'rgba(255,255,255,0.03)';
+            manualBtn.style.borderColor= 'var(--border)';
+            manualBtn.style.color      = 'var(--dim)';
+            autoInfo.style.display  = 'block';
+            manualDiv.style.display = 'none';
+            document.getElementById('pb-risk').textContent = 'AUTO';
+            document.getElementById('pb-risk').style.color = 'var(--accent)';
+            log('Switched to AUTO mode — AI model + AQI will determine risk.', 'info');
+        } else {
+            autoBtn.style.background   = 'rgba(255,255,255,0.03)';
+            autoBtn.style.borderColor  = 'var(--border)';
+            autoBtn.style.color        = 'var(--dim)';
+            manualBtn.style.background = 'rgba(255,200,0,0.1)';
+            manualBtn.style.borderColor= 'var(--mod)';
+            manualBtn.style.color      = 'var(--mod)';
+            autoInfo.style.display  = 'none';
+            manualDiv.style.display = 'block';
+            log('Switched to MANUAL mode — select a risk label below to force it.', 'warn');
+        }
+    }
+
+    function setRisk(btn, risk) {
+        document.querySelectorAll('.risk-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentRisk = risk;
+        const el = document.getElementById('pb-risk');
+        el.textContent = risk;
+        el.style.color = risk.toLowerCase().includes('safe') ? 'var(--safe)'
+                       : risk.toLowerCase().includes('moderate') ? 'var(--mod)'
+                       : 'var(--danger)';
+    }
+
+    // ── PRESETS ──
+    const PRESETS = {
+        safe:       { pm25:8,   pm10:15,  no2:0.02, so2:0.01, co:0.8,  o3:0.02,  temp:24, hum:50, spo2:99, heart_rate:70, risk:'Safe' },
+        moderate:   { pm25:38,  pm10:90,  no2:0.08, so2:0.06, co:8,    o3:0.065, temp:32, hum:68, spo2:96, heart_rate:88, risk:'Moderate' },
+        high:       { pm25:95,  pm10:220, no2:0.22, so2:0.18, co:22,   o3:0.11,  temp:38, hum:78, spo2:93, heart_rate:112, risk:'High Risk' },
+        hazardous:  { pm25:250, pm10:420, no2:1.20, so2:0.70, co:45,   o3:0.35,  temp:42, hum:88, spo2:88, heart_rate:140, risk:'Hazardous — Evacuate' },
+        industrial: { pm25:60,  pm10:180, no2:0.45, so2:0.55, co:15,   o3:0.09,  temp:35, hum:72, spo2:94, heart_rate:105, risk:'Severe' },
+    };
+
+    // Slider raw-value mapping: [sliderScale, sliderMax]
+    const SLIDER_MAP = {
+        pm25: [1,   300],  pm10: [1,   500],
+        no2:  [100, 200],  so2:  [100, 100],
+        co:   [10,  500],  o3:   [100, 100],
+        temp: [1,   55],   hum:  [1,   100],
+        spo2: [1,   100],  heart_rate: [1, 200],
+    };
+
+    function applyPreset(name) {
+        const p = PRESETS[name];
+        if (!p) return;
+
+        Object.entries(p).forEach(([k, v]) => {
+            if (k === 'risk') return;
+            vals[k] = v;
+            document.getElementById('v-' + k).textContent = v;
+            document.getElementById('pb-' + k).textContent = v;
+            const sl = document.getElementById('sl-' + k);
+            if (sl) {
+                const [scale] = SLIDER_MAP[k];
+                sl.value = Math.round(v * scale);
+            }
+        });
+
+        document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+        log(`Preset applied: ${name.toUpperCase()} — AI+AQI will determine risk automatically.`, 'ok');
+    }
+
+    // ── SEND ──
+    async function sendOnce() {
+        const url = getServerURL();
+        // No risk_override — server's AI model + AQI calculator decides everything
+        const payload = {
+            pm25:       vals.pm25,
+            pm10:       vals.pm10,
+            no2:        vals.no2,
+            so2:        vals.so2,
+            co:         vals.co,
+            o3:         vals.o3,
+            temp:       vals.temp,
+            humidity:   vals.hum,
+            spo2:       vals.spo2,
+            heart_rate: vals.heart_rate
+        };
+
+        log(`Sending → PM2.5:${vals.pm25} PM10:${vals.pm10} NO₂:${vals.no2} CO:${vals.co} | Mode: AUTO (AI+AQI)`, 'info');
+
+        try {
+            const res = await fetch(url + '/update_sensor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: AbortSignal.timeout(5000)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                serverConnected = true;
+                document.getElementById('server-status').className = 'server-status connected';
+                document.getElementById('status-text').textContent = 'CONNECTED ✓';
+                log(`✓ Server responded → Risk: "${data.risk}"`, 'ok');
+                toast(`✅ Sent! Dashboard updated → Risk: ${data.risk}`, 'ok');
+            } else {
+                const err = await res.text();
+                log(`✗ Server error ${res.status}: ${err}`, 'err');
+                toast(`❌ Server error ${res.status} — check terminal`, 'err');
+            }
+        } catch(e) {
+            serverConnected = false;
+            document.getElementById('server-status').className = 'server-status disconnected';
+            document.getElementById('status-text').textContent = 'NOT REACHABLE ✗';
+
+            const hint = e.name === 'TimeoutError'
+                ? 'Connection timed out.'
+                : 'Could not connect.';
+            log(`✗ ${hint} → Start Flask: python app.py  |  Then click TEST CONNECTION`, 'err');
+            toast(`❌ ${hint} Is Flask running at ${url}? Run: python app.py`, 'err');
+        }
+    }
+
+    // ── AUTO SEND ──
+    function toggleAuto() {
+        const btn = document.getElementById('auto-btn');
+        if (autoTimer) {
+            clearInterval(autoTimer);
+            autoTimer = null;
+            btn.textContent = '⟳ AUTO-SEND: OFF';
+            btn.classList.remove('on');
+            log('Auto-send stopped.', 'info');
+        } else {
+            btn.textContent = '⏹ AUTO-SEND: ON (2s)';
+            btn.classList.add('on');
+            log('Auto-send started — firing every 2 seconds.', 'ok');
+            sendOnce();
+            autoTimer = setInterval(sendOnce, 2000);
+        }
+    }
+
+    // ── LOG ──
+    function log(msg, type='info') {
+        const box = document.getElementById('log-box');
+        const now = new Date().toLocaleTimeString('en-GB');
+        const div = document.createElement('div');
+        div.className = 'le';
+        div.innerHTML = `<span class="lt">${now}</span><span class="lm ${type}">▸ ${msg}</span>`;
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function clearLog() {
+        document.getElementById('log-box').innerHTML = '<div class="le"><span class="lt">--:--:--</span><span class="lm info">▸ Log cleared.</span></div>';
+    }
+
+    // ── TOAST ──
+    let toastTimer;
+    function toast(msg, type) {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.className = type;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { el.className = ''; el.style.display='none'; }, 5000);
+    }
+
+    // ── AUTO-PING ON LOAD ──
+    window.addEventListener('load', () => {
+        // Auto-detect: if opened via Flask, the URL contains :5000
+        const origin = window.location.origin;
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+            document.getElementById('server-url').value = origin;
+        }
+        setTimeout(pingServer, 600);
+    });
+</script>
+</body>
+</html>

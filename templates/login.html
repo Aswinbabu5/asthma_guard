@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AsthmaGuard AI — Secure Access</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=Space+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #08070f;
+            --panel: rgba(14,12,26,0.95);
+            --border: rgba(91,143,255,0.15);
+            --gold: #5b8fff;
+            --gold-light: #e8dfc8;
+            --safe: #34d4a0;
+            --danger: #c0394b;
+            --text: #a89fc0;
+            --dim: #3d3560;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: #08070f;
+            background-image:
+                radial-gradient(ellipse 70% 60% at 15% 15%, rgba(30,70,180,0.22) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 40% at 85% 85%, rgba(20,110,140,0.14) 0%, transparent 60%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* Animated background grid */
+        body::before {
+            content:''; position:fixed; inset:0;
+            background-image:
+                linear-gradient(rgba(91,143,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(91,143,255,0.03) 1px, transparent 1px);
+            background-size: 52px 52px;
+            pointer-events:none; z-index:0;
+        }
+
+        /* Floating particles canvas */
+        #login-canvas { position:fixed; inset:0; z-index:0; pointer-events:none; }
+
+        .login-wrap {
+            position:relative; z-index:2;
+            display:grid; grid-template-columns:1fr 1fr;
+            width:min(900px, 95vw); min-height:520px;
+            border-radius:28px; overflow:hidden;
+            box-shadow:0 40px 120px rgba(0,0,0,0.8), 0 0 0 1px rgba(91,143,255,0.15);
+        }
+
+        /* LEFT — Branding panel */
+        .login-brand {
+            background: linear-gradient(145deg, #110e22 0%, #1a1438 50%, #0e0b1c 100%);
+            padding:56px 48px;
+            display:flex; flex-direction:column; justify-content:space-between;
+            border-right:1px solid rgba(91,143,255,0.1);
+            position:relative; overflow:hidden;
+        }
+        .login-brand::before {
+            content:''; position:absolute; inset:0;
+            background: radial-gradient(ellipse 80% 60% at 30% 40%, rgba(120,60,200,0.1) 0%, transparent 70%);
+            pointer-events:none;
+        }
+        .lb-top { position:relative; z-index:1; }
+        .lb-shield {
+            width:72px; height:72px; border-radius:18px;
+            background:linear-gradient(145deg, #1e1630, #2e2050);
+            border:1.5px solid rgba(91,143,255,0.35);
+            display:flex; align-items:center; justify-content:center;
+            margin-bottom:28px;
+            box-shadow:0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(91,143,255,0.1);
+        }
+        .lb-shield svg { width:38px; height:38px; }
+        .lb-title {
+            font-family:'Orbitron', monospace; font-size:26px; font-weight:900;
+            letter-spacing:2px; line-height:1.2; margin-bottom:10px;
+            background:linear-gradient(135deg, #e8dfc8 20%, #5b8fff 60%, #e8dfc8 100%);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+        }
+        .lb-sub { font-size:13px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; margin-bottom:28px; }
+        .lb-desc { font-size:15px; color:var(--text); line-height:1.7; max-width:280px; }
+
+        .lb-features { position:relative; z-index:1; }
+        .lb-feat {
+            display:flex; align-items:center; gap:12px;
+            padding:10px 0; border-top:1px solid rgba(255,255,255,0.04);
+            font-size:13px; color:var(--text);
+        }
+        .lb-feat-icon { font-size:18px; width:28px; text-align:center; }
+        .lb-feat-label { color:#e8dfc8; font-weight:600; }
+
+        .lb-bottom { position:relative; z-index:1; }
+        .lb-badge {
+            display:inline-flex; align-items:center; gap:8px;
+            background:rgba(91,143,255,0.07); border:1px solid rgba(91,143,255,0.2);
+            border-radius:50px; padding:8px 16px;
+            font-family:'Space Mono', monospace; font-size:10px; color:var(--gold);
+            letter-spacing:2px;
+        }
+        .lb-dot { width:6px; height:6px; border-radius:50%; background:var(--safe); animation:blink 1.4s infinite; }
+        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+
+        /* RIGHT — Login form */
+        .login-form-panel {
+            background: rgba(10,8,20,0.98);
+            padding:56px 48px;
+            display:flex; flex-direction:column; justify-content:center;
+        }
+        .lf-eyebrow { font-size:10px; letter-spacing:5px; color:var(--dim); text-transform:uppercase; margin-bottom:8px; }
+        .lf-title { font-family:'Orbitron', monospace; font-size:22px; font-weight:900; color:#e8dfc8; letter-spacing:2px; margin-bottom:6px; }
+        .lf-sub { font-size:14px; color:var(--dim); margin-bottom:36px; }
+
+        .lf-tabs { display:flex; gap:0; margin-bottom:32px; border-bottom:1px solid rgba(255,255,255,0.06); }
+        .lf-tab {
+            padding:10px 22px; font-family:'Orbitron', monospace; font-size:11px; font-weight:700;
+            letter-spacing:2px; color:var(--dim); cursor:pointer; border-bottom:2px solid transparent;
+            transition:all 0.3s; background:none; border-top:none; border-left:none; border-right:none;
+            margin-bottom:-1px;
+        }
+        .lf-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+        .lf-tab:hover:not(.active) { color:var(--text); }
+
+        .lf-panel { display:none; }
+        .lf-panel.active { display:block; }
+
+        .field-group { margin-bottom:18px; }
+        .field-label { font-size:11px; letter-spacing:3px; color:var(--dim); text-transform:uppercase; margin-bottom:7px; display:block; }
+        .field-wrap { position:relative; }
+        .field-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:16px; pointer-events:none; }
+        .field-input {
+            width:100%; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+            border-radius:12px; padding:13px 14px 13px 44px;
+            font-family:'Rajdhani', sans-serif; font-size:16px; color:#e8dfc8;
+            outline:none; transition:border-color 0.3s, box-shadow 0.3s;
+        }
+        .field-input:focus { border-color:rgba(91,143,255,0.4); box-shadow:0 0 0 3px rgba(91,143,255,0.08); }
+        .field-input::placeholder { color:var(--dim); }
+        .field-input.error { border-color:rgba(192,57,75,0.5); }
+
+        .submit-btn {
+            width:100%; padding:15px; border-radius:12px; border:none; cursor:pointer;
+            font-family:'Orbitron', monospace; font-size:13px; font-weight:700; letter-spacing:2px;
+            color:#fff; transition:all 0.3s; margin-top:8px;
+            background:linear-gradient(135deg, #5a3d1a, #5b8fff, #5a3d1a);
+            background-size:200% 100%; background-position:right;
+        }
+        .submit-btn:hover { background-position:left; box-shadow:0 6px 24px rgba(91,143,255,0.25); transform:translateY(-1px); }
+        .submit-btn:active { transform:translateY(0); }
+
+        .error-msg {
+            background:rgba(192,57,75,0.1); border:1px solid rgba(192,57,75,0.3);
+            border-radius:10px; padding:10px 14px; font-size:13px; color:#e07080;
+            margin-bottom:16px; display:none;
+        }
+        .success-msg {
+            background:rgba(78,203,141,0.1); border:1px solid rgba(78,203,141,0.3);
+            border-radius:10px; padding:10px 14px; font-size:13px; color:#34d4a0;
+            margin-bottom:16px; display:none;
+        }
+
+        .lf-divider { display:flex; align-items:center; gap:12px; margin:20px 0; }
+        .lf-divider::before, .lf-divider::after { content:''; flex:1; height:1px; background:rgba(255,255,255,0.05); }
+        .lf-divider span { font-size:11px; color:var(--dim); letter-spacing:2px; }
+
+        .forgot-link { font-size:13px; color:var(--dim); text-align:right; cursor:pointer; margin-top:4px; text-decoration:none; }
+        .forgot-link:hover { color:var(--gold); }
+
+        @media(max-width:680px) {
+            .login-wrap { grid-template-columns:1fr; }
+            .login-brand { display:none; }
+            .login-form-panel { padding:40px 28px; border-radius:28px; }
+        }
+    </style>
+</head>
+<body>
+<canvas id="login-canvas"></canvas>
+
+<div class="login-wrap">
+    <!-- BRAND SIDE -->
+    <div class="login-brand">
+        <div class="lb-top">
+            <div class="lb-shield">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V6L12 2z"
+                        fill="rgba(91,143,255,0.15)" stroke="#5b8fff" stroke-width="1.5" stroke-linejoin="round"/>
+                    <path d="M9 12l2 2 4-4" stroke="#5b8fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="lb-title">ASTHMA<br>GUARD AI</div>
+            <div class="lb-sub">Sentinel · Real-Time Protection</div>
+            <div class="lb-desc">AI-powered air quality monitoring with real-time asthma risk assessment and patient vital tracking.</div>
+        </div>
+
+        <div class="lb-features">
+            <div class="lb-feat"><span class="lb-feat-icon">🌬️</span><div><div class="lb-feat-label">Live IoT Sensors</div><div>PM2.5 · PM10 · NO₂ · SO₂ · CO · O₃</div></div></div>
+            <div class="lb-feat"><span class="lb-feat-icon">🩺</span><div><div class="lb-feat-label">Patient Vitals</div><div>SpO₂ · Heart Rate via MAX30100</div></div></div>
+            <div class="lb-feat"><span class="lb-feat-icon">🤖</span><div><div class="lb-feat-label">AI Risk Prediction</div><div>ML model + EPA AQI engine</div></div></div>
+            <div class="lb-feat"><span class="lb-feat-icon">🚨</span><div><div class="lb-feat-label">Emergency Alerts</div><div>Critical level detection & notification</div></div></div>
+        </div>
+
+        <div class="lb-bottom">
+            <div class="lb-badge"><div class="lb-dot"></div>SYSTEM OPERATIONAL</div>
+        </div>
+    </div>
+
+    <!-- FORM SIDE -->
+    <div class="login-form-panel">
+        <div class="lf-eyebrow">Secure Access Portal</div>
+        <div class="lf-title">WELCOME BACK</div>
+        <div class="lf-sub">Sign in to your monitoring dashboard</div>
+
+        <div class="lf-tabs">
+            <button class="lf-tab active" onclick="switchTab('login')">SIGN IN</button>
+            <button class="lf-tab" onclick="switchTab('register')">REGISTER</button>
+        </div>
+
+        <!-- LOGIN PANEL -->
+        <div class="lf-panel active" id="panel-login">
+            <div class="error-msg" id="login-error"></div>
+            <div class="field-group">
+                <label class="field-label">Username</label>
+                <div class="field-wrap">
+                    <span class="field-icon">👤</span>
+                    <input class="field-input" type="text" id="login-user" placeholder="Enter your username" autocomplete="username">
+                </div>
+            </div>
+            <div class="field-group">
+                <label class="field-label">Password</label>
+                <div class="field-wrap">
+                    <span class="field-icon">🔒</span>
+                    <input class="field-input" type="password" id="login-pass" placeholder="Enter your password" autocomplete="current-password">
+                </div>
+                <a class="forgot-link" onclick="showForgot()">Forgot password?</a>
+            </div>
+            <button class="submit-btn" onclick="doLogin()">ENTER DASHBOARD →</button>
+        </div>
+
+        <!-- REGISTER PANEL -->
+        <div class="lf-panel" id="panel-register">
+            <div class="error-msg" id="reg-error"></div>
+            <div class="success-msg" id="reg-success"></div>
+            <div class="field-group">
+                <label class="field-label">Full Name</label>
+                <div class="field-wrap">
+                    <span class="field-icon">🏷️</span>
+                    <input class="field-input" type="text" id="reg-name" placeholder="Dr. John Smith">
+                </div>
+            </div>
+            <div class="field-group">
+                <label class="field-label">Username</label>
+                <div class="field-wrap">
+                    <span class="field-icon">👤</span>
+                    <input class="field-input" type="text" id="reg-user" placeholder="Choose a username">
+                </div>
+            </div>
+            <div class="field-group">
+                <label class="field-label">Password</label>
+                <div class="field-wrap">
+                    <span class="field-icon">🔒</span>
+                    <input class="field-input" type="password" id="reg-pass" placeholder="Min 6 characters">
+                </div>
+            </div>
+            <button class="submit-btn" onclick="doRegister()">CREATE ACCOUNT →</button>
+        </div>
+
+        <div class="lf-divider"><span>SECURED BY</span></div>
+        <div style="text-align:center;font-family:'Space Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:3px;">
+            SHA-256 · SESSION TOKENS · SQLITE
+        </div>
+    </div>
+</div>
+
+<script>
+function switchTab(tab) {
+    document.querySelectorAll('.lf-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+    document.getElementById('panel-login').classList.toggle('active', tab==='login');
+    document.getElementById('panel-register').classList.toggle('active', tab==='register');
+}
+
+function showErr(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = '⚠ ' + msg;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display='none', 4000);
+}
+function showSuccess(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = '✓ ' + msg;
+    el.style.display = 'block';
+}
+
+async function doLogin() {
+    const user = document.getElementById('login-user').value.trim();
+    const pass = document.getElementById('login-pass').value;
+    if (!user || !pass) return showErr('login-error', 'Please fill in all fields.');
+    try {
+        const res = await fetch('/login', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({username: user, password: pass})
+        });
+        const d = await res.json();
+        if (d.success) {
+            window.location.href = '/';
+        } else {
+            showErr('login-error', d.message || 'Invalid credentials.');
+        }
+    } catch(e) {
+        showErr('login-error', 'Cannot reach server. Is Flask running?');
+    }
+}
+
+async function doRegister() {
+    const name = document.getElementById('reg-name').value.trim();
+    const user = document.getElementById('reg-user').value.trim();
+    const pass = document.getElementById('reg-pass').value;
+    if (!name || !user || !pass) return showErr('reg-error', 'Please fill in all fields.');
+    if (pass.length < 6) return showErr('reg-error', 'Password must be at least 6 characters.');
+    try {
+        const res = await fetch('/register', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({name, username: user, password: pass})
+        });
+        const d = await res.json();
+        if (d.success) {
+            showSuccess('reg-success', 'Account created! Signing you in...');
+            setTimeout(() => window.location.href = '/', 1200);
+        } else {
+            showErr('reg-error', d.message || 'Registration failed.');
+        }
+    } catch(e) {
+        showErr('reg-error', 'Cannot reach server. Is Flask running?');
+    }
+}
+
+function showForgot() { showErr('login-error', 'Contact your administrator to reset your password.'); }
+
+// Enter key support
+document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    if (document.getElementById('panel-login').classList.contains('active')) doLogin();
+    else doRegister();
+});
+
+// Particle canvas
+const c = document.getElementById('login-canvas');
+const ctx = c.getContext('2d');
+c.width = window.innerWidth; c.height = window.innerHeight;
+window.addEventListener('resize', () => { c.width = window.innerWidth; c.height = window.innerHeight; });
+const pts = Array.from({length:40}, () => ({
+    x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight,
+    r: Math.random()*1.2+0.3,
+    vx: (Math.random()-0.5)*0.2, vy: (Math.random()-0.5)*0.2,
+    col: ['rgba(140,100,220,','rgba(91,143,255,','rgba(100,80,180,'][Math.floor(Math.random()*3)],
+    a: Math.random()*0.35+0.06
+}));
+(function draw() {
+    ctx.clearRect(0,0,c.width,c.height);
+    pts.forEach(p => {
+        p.x+=p.vx; p.y+=p.vy;
+        if(p.x<0)p.x=c.width; if(p.x>c.width)p.x=0;
+        if(p.y<0)p.y=c.height; if(p.y>c.height)p.y=0;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fillStyle = p.col+p.a+')'; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
