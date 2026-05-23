@@ -1,1 +1,1 @@
-# asthma_guard
+Smart air quality monitoring for asthma patients
