@@ -16,10 +16,10 @@
 #define BUZZER_PIN 25
 
 // ---------------- FLASK ----------------
-const char* FLASK_IP   = "10.247.206.127";
+const char* FLASK_IP   = "flask_ip";
 const int   FLASK_PORT = 5000;
-const char* DEV_USER   = "akashanand";
-const char* DEV_PASS   = "anand28122004";
+const char* DEV_USER   = "username";
+const char* DEV_PASS   = "password";
 
 // ════════════════════════════════════════
 //  WIFI CREDENTIALS
