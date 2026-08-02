@@ -1,3 +1,7 @@
 smart_iot_asthma_aqi_pipeline.joblib
-smart_iot_asthma_aqi_pipeline.joblib
+asthma_guard.db-shm
+asthma_guard.db-wal
+asthma_guard.db
+.vscode/
 .env
+
